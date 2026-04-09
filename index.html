@@ -5,238 +5,111 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Globe 3D</title>
-
-<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
 <style>
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-html, body { width:100%; height:100%; overflow:hidden; background:#000; font-family:'Outfit',sans-serif; }
+html, body { width:100%; height:100%; overflow:hidden; background:#000308; font-family:'Outfit',sans-serif; }
 
-#map { position:absolute; inset:0; }
-
-.maplibregl-ctrl-logo, .maplibregl-ctrl-attrib { display:none !important; }
-.maplibregl-ctrl-group { display:none !important; }
-.maplibregl-canvas { touch-action:none; }
+#c { position:absolute; inset:0; display:block; }
 
 /* ── LOADER ── */
 #loader {
   position:fixed; inset:0; z-index:9999;
-  background:#000;
+  background:#000308;
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
-  transition:opacity .6s ease;
+  transition:opacity .7s ease;
 }
 .loader-dot {
-  width:56px; height:56px; border-radius:50%;
-  background:radial-gradient(circle at 35% 35%, #4fc3f7, #0277bd 60%, #01579b);
-  box-shadow:0 0 30px rgba(79,195,247,0.5);
-  animation:pulse 2s ease-in-out infinite;
+  width:60px; height:60px; border-radius:50%;
+  background:radial-gradient(circle at 30% 30%, #80d8ff, #0277bd 55%, #01579b 80%, #001f3f);
+  box-shadow:0 0 40px rgba(79,195,247,0.6), 0 0 80px rgba(2,119,189,0.3);
+  animation:spin 8s linear infinite, pulse 2.5s ease-in-out infinite;
 }
-@keyframes pulse { 0%,100%{transform:scale(1);box-shadow:0 0 30px rgba(79,195,247,0.5)} 50%{transform:scale(1.08);box-shadow:0 0 50px rgba(79,195,247,0.8)} }
+@keyframes spin  { to { transform:rotate(360deg); } }
+@keyframes pulse { 0%,100%{box-shadow:0 0 40px rgba(79,195,247,0.6)} 50%{box-shadow:0 0 70px rgba(79,195,247,0.9)} }
 #loader h1 {
-  font-size:28px; font-weight:700; letter-spacing:-0.5px;
+  font-size:30px; font-weight:700; letter-spacing:-0.5px;
   background:linear-gradient(135deg,#fff 30%,#4fc3f7);
   -webkit-background-clip:text; -webkit-text-fill-color:transparent;
 }
-#loader-bar { width:140px; height:2px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden; }
-#loader-fill { height:100%; width:10%; background:linear-gradient(90deg,#4fc3f7,#29b6f6); border-radius:2px; transition:width .3s ease; }
+#loader-bar { width:160px; height:2px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden; }
+#loader-fill { height:100%; width:5%; background:linear-gradient(90deg,#4fc3f7,#81d4fa); border-radius:2px; transition:width .4s ease; }
 #loader-msg { font-size:11px; color:rgba(255,255,255,0.3); letter-spacing:1.5px; text-transform:uppercase; }
 
 /* ── SEARCH ── */
 #search-box {
-  position:fixed; top:max(16px, env(safe-area-inset-top)); left:50%; transform:translateX(-50%);
-  z-index:100; width:min(440px, calc(100vw - 24px));
+  position:fixed; top:max(16px,env(safe-area-inset-top)); left:50%; transform:translateX(-50%);
+  z-index:100; width:min(440px,calc(100vw - 24px));
 }
 #search-inner {
   display:flex; align-items:center; gap:10px;
-  background:rgba(15,15,18,0.9);
-  backdrop-filter:blur(24px) saturate(180%);
-  -webkit-backdrop-filter:blur(24px) saturate(180%);
-  border:1px solid rgba(255,255,255,0.12);
-  border-radius:16px; padding:0 15px; height:50px;
-  box-shadow:0 4px 24px rgba(0,0,0,0.8);
+  background:rgba(10,12,20,0.92);
+  backdrop-filter:blur(24px) saturate(180%); -webkit-backdrop-filter:blur(24px) saturate(180%);
+  border:1px solid rgba(255,255,255,0.11); border-radius:16px; padding:0 15px; height:50px;
+  box-shadow:0 4px 30px rgba(0,0,0,0.9);
   transition:border-color .2s, box-shadow .2s;
 }
-#search-inner:focus-within {
-  border-color:rgba(79,195,247,0.5);
-  box-shadow:0 4px 24px rgba(0,0,0,0.8), 0 0 0 3px rgba(79,195,247,0.18);
-}
-#search-input {
-  flex:1; border:none; background:transparent;
-  color:#fff; font-family:'Outfit',sans-serif; font-size:15px;
-  outline:none; min-width:0;
-}
-#search-input::placeholder { color:rgba(255,255,255,0.28); }
+#search-inner:focus-within { border-color:rgba(79,195,247,0.5); box-shadow:0 4px 30px rgba(0,0,0,0.9),0 0 0 3px rgba(79,195,247,0.15); }
+#search-input { flex:1; border:none; background:transparent; color:#fff; font-family:'Outfit',sans-serif; font-size:15px; outline:none; min-width:0; }
+#search-input::placeholder { color:rgba(255,255,255,0.25); }
 .s-icon { color:rgba(255,255,255,0.3); flex-shrink:0; }
-#s-clear {
-  background:rgba(255,255,255,0.1); border:none; border-radius:50%;
-  width:22px; height:22px; color:rgba(255,255,255,0.5);
-  cursor:pointer; font-size:14px; display:none;
-  align-items:center; justify-content:center; flex-shrink:0;
-}
-#s-clear:hover { background:rgba(255,255,255,0.2); }
-#autocomplete {
-  margin-top:7px;
-  background:rgba(15,15,18,0.95);
-  backdrop-filter:blur(24px);
-  -webkit-backdrop-filter:blur(24px);
-  border:1px solid rgba(255,255,255,0.1);
-  border-radius:14px; overflow:hidden; display:none;
-  box-shadow:0 10px 40px rgba(0,0,0,0.9);
-}
-.ac-row {
-  display:flex; align-items:center; gap:11px;
-  padding:12px 15px; cursor:pointer;
-  border-bottom:1px solid rgba(255,255,255,0.05);
-  transition:background .1s; -webkit-user-select:none;
-}
+#s-clear { background:rgba(255,255,255,0.1); border:none; border-radius:50%; width:22px; height:22px; color:rgba(255,255,255,0.5); cursor:pointer; font-size:14px; display:none; align-items:center; justify-content:center; flex-shrink:0; }
+#autocomplete { margin-top:7px; background:rgba(10,12,20,0.97); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border:1px solid rgba(255,255,255,0.1); border-radius:14px; overflow:hidden; display:none; box-shadow:0 10px 40px rgba(0,0,0,0.9); }
+.ac-row { display:flex; align-items:center; gap:11px; padding:12px 15px; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.05); transition:background .1s; -webkit-user-select:none; }
 .ac-row:last-child { border-bottom:none; }
-.ac-row:hover, .ac-row:active { background:rgba(79,195,247,0.1); }
-.ac-ico {
-  width:32px; height:32px; border-radius:9px;
-  background:rgba(79,195,247,0.12);
-  display:flex; align-items:center; justify-content:center;
-  font-size:15px; flex-shrink:0;
-}
+.ac-row:active { background:rgba(79,195,247,0.1); }
+.ac-ico { width:32px; height:32px; border-radius:9px; background:rgba(79,195,247,0.12); display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
 .ac-main { font-size:14px; font-weight:500; color:#fff; }
-.ac-sub  { font-size:11.5px; color:rgba(255,255,255,0.36); margin-top:1px; }
+.ac-sub  { font-size:11.5px; color:rgba(255,255,255,0.35); margin-top:1px; }
 
 /* ── RIGHT PANEL ── */
-#right-panel {
-  position:fixed; top:max(16px, env(safe-area-inset-top)); right:14px;
-  z-index:100; display:flex; flex-direction:column; gap:8px;
-}
-.r-btn {
-  width:44px; height:44px;
-  background:rgba(15,15,18,0.9);
-  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
-  border:1px solid rgba(255,255,255,0.1); border-radius:13px;
-  display:flex; align-items:center; justify-content:center;
-  cursor:pointer; color:rgba(255,255,255,0.72);
-  box-shadow:0 2px 14px rgba(0,0,0,0.7);
-  transition:transform .12s, background .12s;
-  user-select:none; -webkit-user-select:none; font-size:18px;
-}
-.r-btn:hover, .r-btn:active { transform:scale(1.07); background:rgba(35,35,40,0.95); }
+#right-panel { position:fixed; top:max(16px,env(safe-area-inset-top)); right:14px; z-index:100; display:flex; flex-direction:column; gap:8px; }
+.r-btn { width:44px; height:44px; background:rgba(10,12,20,0.92); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.1); border-radius:13px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:rgba(255,255,255,0.7); box-shadow:0 2px 16px rgba(0,0,0,0.8); transition:transform .12s, background .12s; user-select:none; -webkit-user-select:none; font-size:18px; }
+.r-btn:active { transform:scale(1.07); }
 .r-btn.on { color:#4fc3f7; border-color:rgba(79,195,247,0.4); }
 
 /* ── LAYER PILLS ── */
-#layers {
-  position:fixed; bottom:max(100px, calc(env(safe-area-inset-bottom) + 90px)); right:14px;
-  z-index:100; display:flex; flex-direction:column; gap:7px;
-}
-.l-btn {
-  padding:8px 13px;
-  background:rgba(15,15,18,0.9);
-  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
-  border:1px solid rgba(255,255,255,0.1); border-radius:11px;
-  color:rgba(255,255,255,0.6); font-family:'Outfit',sans-serif;
-  font-size:12px; font-weight:600; cursor:pointer;
-  display:flex; align-items:center; gap:5px;
-  box-shadow:0 2px 12px rgba(0,0,0,0.6);
-  transition:transform .12s, background .12s, color .12s;
-  white-space:nowrap; user-select:none; -webkit-user-select:none;
-}
-.l-btn:hover, .l-btn:active { transform:scale(1.04); }
+#layers { position:fixed; bottom:max(100px,calc(env(safe-area-inset-bottom) + 90px)); right:14px; z-index:100; display:flex; flex-direction:column; gap:7px; }
+.l-btn { padding:8px 13px; background:rgba(10,12,20,0.92); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.1); border-radius:11px; color:rgba(255,255,255,0.6); font-family:'Outfit',sans-serif; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:5px; box-shadow:0 2px 14px rgba(0,0,0,0.7); transition:transform .12s,background .12s,color .12s; white-space:nowrap; user-select:none; -webkit-user-select:none; }
+.l-btn:active { transform:scale(1.04); }
 .l-btn.on { color:#4fc3f7; border-color:rgba(79,195,247,0.38); background:rgba(79,195,247,0.1); }
 
 /* ── ZOOM ── */
-#zoom-wrap {
-  position:fixed; bottom:max(100px, calc(env(safe-area-inset-bottom) + 90px)); left:14px;
-  z-index:100; display:flex; flex-direction:column; gap:6px;
-}
-.z-btn {
-  width:42px; height:42px;
-  background:rgba(15,15,18,0.9);
-  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
-  border:1px solid rgba(255,255,255,0.1); border-radius:12px;
-  color:rgba(255,255,255,0.75); font-size:22px; font-weight:300;
-  display:flex; align-items:center; justify-content:center;
-  cursor:pointer; box-shadow:0 2px 12px rgba(0,0,0,0.6);
-  transition:transform .12s; user-select:none; -webkit-user-select:none;
-}
-.z-btn:hover, .z-btn:active { transform:scale(1.07); }
+#zoom-wrap { position:fixed; bottom:max(100px,calc(env(safe-area-inset-bottom) + 90px)); left:14px; z-index:100; display:flex; flex-direction:column; gap:6px; }
+.z-btn { width:42px; height:42px; background:rgba(10,12,20,0.92); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.1); border-radius:12px; color:rgba(255,255,255,0.75); font-size:22px; font-weight:300; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 2px 14px rgba(0,0,0,0.7); transition:transform .12s; user-select:none; -webkit-user-select:none; }
+.z-btn:active { transform:scale(1.07); }
 
 /* ── INFO BAR ── */
-#info-bar {
-  position:fixed;
-  bottom:max(18px, env(safe-area-inset-bottom));
-  left:50%; transform:translateX(-50%);
-  z-index:100;
-  display:flex; align-items:stretch;
-  background:rgba(15,15,18,0.9);
-  backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
-  border:1px solid rgba(255,255,255,0.1);
-  border-radius:14px; overflow:hidden;
-  box-shadow:0 4px 28px rgba(0,0,0,0.8);
-  cursor:pointer; user-select:none;
-}
-.i-seg {
-  padding:9px 16px;
-  display:flex; flex-direction:column; align-items:center; gap:2px;
-  border-right:1px solid rgba(255,255,255,0.06);
-  transition:background .1s; min-width:88px;
-}
+#info-bar { position:fixed; bottom:max(18px,env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); z-index:100; display:flex; align-items:stretch; background:rgba(10,12,20,0.92); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border:1px solid rgba(255,255,255,0.1); border-radius:14px; overflow:hidden; box-shadow:0 4px 30px rgba(0,0,0,0.9); cursor:pointer; user-select:none; }
+.i-seg { padding:9px 16px; display:flex; flex-direction:column; align-items:center; gap:2px; border-right:1px solid rgba(255,255,255,0.06); transition:background .1s; min-width:88px; }
 .i-seg:last-child { border-right:none; }
 .i-seg:active { background:rgba(255,255,255,0.06); }
 .i-lbl { font-size:9.5px; color:rgba(255,255,255,0.28); text-transform:uppercase; letter-spacing:1px; font-weight:500; }
 .i-val { font-size:12.5px; color:#fff; font-weight:500; font-variant-numeric:tabular-nums; }
 
 /* ── PLACE CARD ── */
-#place-card {
-  position:fixed;
-  bottom:max(88px, calc(env(safe-area-inset-bottom) + 78px));
-  left:50%; transform:translateX(-50%) translateY(14px);
-  z-index:100;
-  width:min(340px, calc(100vw - 28px));
-  background:rgba(15,15,18,0.96);
-  backdrop-filter:blur(30px); -webkit-backdrop-filter:blur(30px);
-  border:1px solid rgba(255,255,255,0.11);
-  border-radius:20px; padding:17px 17px 15px;
-  box-shadow:0 12px 50px rgba(0,0,0,0.9);
-  opacity:0; pointer-events:none;
-  transition:opacity .25s, transform .25s cubic-bezier(.32,1.2,.4,1);
-}
+#place-card { position:fixed; bottom:max(88px,calc(env(safe-area-inset-bottom) + 78px)); left:50%; transform:translateX(-50%) translateY(14px); z-index:100; width:min(340px,calc(100vw - 28px)); background:rgba(10,12,20,0.97); backdrop-filter:blur(30px); -webkit-backdrop-filter:blur(30px); border:1px solid rgba(255,255,255,0.11); border-radius:20px; padding:17px 17px 15px; box-shadow:0 12px 50px rgba(0,0,0,0.9); opacity:0; pointer-events:none; transition:opacity .25s, transform .25s cubic-bezier(.32,1.2,.4,1); }
 #place-card.show { opacity:1; pointer-events:all; transform:translateX(-50%) translateY(0); }
-#pc-x {
-  position:absolute; top:12px; right:12px;
-  background:rgba(255,255,255,0.08); border:none; border-radius:50%;
-  width:26px; height:26px; color:rgba(255,255,255,0.5);
-  cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center;
-}
-#pc-x:active { background:rgba(255,255,255,0.16); }
+#pc-x { position:absolute; top:12px; right:12px; background:rgba(255,255,255,0.08); border:none; border-radius:50%; width:26px; height:26px; color:rgba(255,255,255,0.5); cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; }
 #pc-name { font-size:16px; font-weight:600; color:#fff; padding-right:32px; line-height:1.35; margin-bottom:3px; }
-#pc-ll   { font-size:11.5px; color:rgba(255,255,255,0.36); margin-bottom:13px; }
+#pc-ll   { font-size:11.5px; color:rgba(255,255,255,0.35); margin-bottom:13px; }
 #pc-btns { display:flex; gap:7px; }
-.pc-b {
-  flex:1; background:rgba(79,195,247,0.12);
-  border:1px solid rgba(79,195,247,0.2);
-  border-radius:11px; padding:9px 4px;
-  color:#4fc3f7; font-family:'Outfit',sans-serif;
-  font-size:11px; font-weight:600; cursor:pointer;
-  display:flex; flex-direction:column; align-items:center; gap:3px;
-  transition:background .12s;
-}
+.pc-b { flex:1; background:rgba(79,195,247,0.1); border:1px solid rgba(79,195,247,0.2); border-radius:11px; padding:9px 4px; color:#4fc3f7; font-family:'Outfit',sans-serif; font-size:11px; font-weight:600; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px; transition:background .12s; }
 .pc-b:active { background:rgba(79,195,247,0.22); }
 .pc-b svg { width:16px; height:16px; }
 
 /* ── TOAST ── */
-#toast {
-  position:fixed; top:78px; left:50%; transform:translateX(-50%);
-  background:rgba(15,15,18,0.97);
-  border:1px solid rgba(255,255,255,0.1);
-  border-radius:10px; padding:8px 18px;
-  color:#fff; font-size:13px; font-weight:500;
-  z-index:200; opacity:0; pointer-events:none;
-  transition:opacity .22s; white-space:nowrap;
-  backdrop-filter:blur(20px);
-}
+#toast { position:fixed; top:78px; left:50%; transform:translateX(-50%); background:rgba(10,12,20,0.97); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:8px 18px; color:#fff; font-size:13px; font-weight:500; z-index:200; opacity:0; pointer-events:none; transition:opacity .22s; white-space:nowrap; backdrop-filter:blur(20px); }
 #toast.show { opacity:1; }
 </style>
 
 </head>
 <body>
+
+<canvas id="c"></canvas>
 
 <!-- LOADER -->
 
@@ -244,12 +117,8 @@ html, body { width:100%; height:100%; overflow:hidden; background:#000; font-fam
   <div class="loader-dot"></div>
   <h1>Globe 3D</h1>
   <div id="loader-bar"><div id="loader-fill"></div></div>
-  <div id="loader-msg">Initialisation…</div>
+  <div id="loader-msg">Compilation des shaders…</div>
 </div>
-
-<!-- MAP -->
-
-<div id="map"></div>
 
 <!-- SEARCH -->
 
@@ -264,13 +133,17 @@ html, body { width:100%; height:100%; overflow:hidden; background:#000; font-fam
   <div id="autocomplete"></div>
 </div>
 
-<!-- RIGHT BUTTONS -->
+<!-- RIGHT PANEL -->
 
 <div id="right-panel">
   <div class="r-btn" id="btn-geo">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-      <circle cx="12" cy="12" r="3"/>
-      <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+      <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+    </svg>
+  </div>
+  <div class="r-btn" id="btn-spin" title="Auto-rotation">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+      <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
     </svg>
   </div>
   <div class="r-btn" id="btn-reset">⟳</div>
@@ -280,8 +153,8 @@ html, body { width:100%; height:100%; overflow:hidden; background:#000; font-fam
 
 <div id="layers">
   <button class="l-btn on" data-layer="satellite">🛰 Satellite</button>
-  <button class="l-btn" data-layer="streets">🗺 Carte</button>
-  <button class="l-btn" data-layer="outdoors">🏔 Relief</button>
+  <button class="l-btn on" data-layer="clouds">☁️ Nuages</button>
+  <button class="l-btn" data-layer="night">🌙 Nuit</button>
 </div>
 
 <!-- ZOOM -->
@@ -296,7 +169,7 @@ html, body { width:100%; height:100%; overflow:hidden; background:#000; font-fam
 <div id="info-bar">
   <div class="i-seg"><span class="i-lbl">Latitude</span><span class="i-val" id="v-lat">—</span></div>
   <div class="i-seg"><span class="i-lbl">Longitude</span><span class="i-val" id="v-lng">—</span></div>
-  <div class="i-seg"><span class="i-lbl">Zoom</span><span class="i-val" id="v-zoom">—</span></div>
+  <div class="i-seg"><span class="i-lbl">Distance</span><span class="i-val" id="v-zoom">—</span></div>
 </div>
 
 <!-- PLACE CARD -->
@@ -329,113 +202,461 @@ html, body { width:100%; height:100%; overflow:hidden; background:#000; font-fam
 <div id="toast"></div>
 
 <script>
-// ── STYLES (tuiles gratuites, aucun token requis) ────────
-const TILE_SOURCES = {
-  satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  streets:   'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-  outdoors:  'https://a.tile.opentopomap.org/{z}/{x}/{y}.png'
-};
+// ═══════════════════════════════════════════════════════════
+//  GLOBE 3D — WebGL from scratch with Three.js r128
+//  Aucun service de carte. Tuiles = zéro. Pure sphère 3D.
+// ═══════════════════════════════════════════════════════════
 
-function makeStyle(layer) {
-  return {
-    version: 8,
-    glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
-    sources: {
-      base: {
-        type: 'raster',
-        tiles: [TILE_SOURCES[layer]],
-        tileSize: 256,
-        attribution: layer === 'satellite'
-          ? '© Esri, DigitalGlobe'
-          : layer === 'streets'
-          ? '© CartoDB © OpenStreetMap'
-          : '© OpenTopoMap'
-      }
-    },
-    layers: [{ id: 'base-tiles', type: 'raster', source: 'base' }]
-  };
+// ── LOADER ───────────────────────────────────────────────
+const fillEl = document.getElementById('loader-fill');
+const msgEl  = document.getElementById('loader-msg');
+function prog(p, t) {
+  fillEl.style.width = p + '%';
+  if (t) msgEl.textContent = t;
+}
+prog(10, 'Compilation des shaders…');
+
+// ── SCENE ────────────────────────────────────────────────
+const canvas   = document.getElementById('c');
+const scene    = new THREE.Scene();
+const camera   = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.01, 2000);
+camera.position.set(0, 0, 2.8);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.setClearColor(0x000308, 1);
+prog(20, 'Renderer WebGL initialisé…');
+
+// ── EARTH GROUP ──────────────────────────────────────────
+// Rotating group that holds Earth + clouds
+// Rotation Y = -PI/2 → Europe/Afrique face à la caméra au départ
+const earthGroup = new THREE.Group();
+earthGroup.rotation.y = -Math.PI / 2;
+scene.add(earthGroup);
+
+// ── TEXTURE LOADER ───────────────────────────────────────
+const tl = new THREE.TextureLoader();
+// Textures NASA / Three.js examples — images statiques, pas de tiles API
+const BASE = 'https://threejs.org/examples/textures/planets/';
+let loadedCount = 0;
+function onLoad() {
+  loadedCount++;
+  prog(20 + loadedCount * 18, ['Texture jour…', 'Lumières nocturnes…', 'Nuages…', 'Carte normale…'][loadedCount - 1] || 'Chargement…');
+  if (loadedCount >= 4) hideLoader();
 }
 
-// ── LOADER ──────────────────────────────────────────────
-const fill = document.getElementById('loader-fill');
-const msg  = document.getElementById('loader-msg');
-function prog(p, t) { fill.style.width = p + '%'; if (t) msg.textContent = t; }
-prog(20, 'Création du globe…');
+const dayTex    = tl.load(BASE + 'earth_atmos_2048.jpg',   onLoad, undefined, () => onLoad());
+const nightTex  = tl.load(BASE + 'earth_lights_2048.png',  onLoad, undefined, () => onLoad());
+const cloudsTex = tl.load(BASE + 'earth_clouds_1024.png',  onLoad, undefined, () => onLoad());
+const normalTex = tl.load(BASE + 'earth_normal_2048.jpg',  onLoad, undefined, () => onLoad());
 
-// ── MAP INIT ─────────────────────────────────────────────
-const map = new maplibregl.Map({
-  container: 'map',
-  style: makeStyle('satellite'),
-  center: [10, 20],
-  zoom: 1.5,
-  projection: { type: 'globe' },
-  antialias: true,
-  attributionControl: false,
-  renderWorldCopies: false,
-  maxPitch: 85,
-  fadeDuration: 300,
+// ── EARTH — SHADER JOUR/NUIT PERSONNALISÉ ─────────────────
+// Ce shader GLSL mélange la texture jour (Blue Marble NASA)
+// et la texture nuit (city lights) selon l'angle du soleil.
+const earthVert = `
+  varying vec2  vUv;
+  varying vec3  vNormal;
+  varying vec3  vPos;
+  varying vec3  vWorldNormal;
+
+  void main() {
+    vUv          = uv;
+    vNormal      = normalize(normalMatrix * normal);
+    vWorldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+    vec4 mvPos   = modelViewMatrix * vec4(position, 1.0);
+    vPos         = mvPos.xyz;
+    gl_Position  = projectionMatrix * mvPos;
+  }
+`;
+
+const earthFrag = `
+  uniform sampler2D dayMap;
+  uniform sampler2D nightMap;
+  uniform sampler2D normalMap;
+  uniform vec3      sunDir;
+  uniform float     nightMode;  // 0=réaliste  1=nuit forcée
+
+  varying vec2  vUv;
+  varying vec3  vNormal;
+  varying vec3  vPos;
+  varying vec3  vWorldNormal;
+
+  void main() {
+    vec4 day   = texture2D(dayMap,   vUv);
+    vec4 night = texture2D(nightMap, vUv);
+
+    // Dot produit soleil-normal → côté jour vs nuit
+    float sunDot = dot(normalize(vNormal), normalize(sunDir));
+
+    // Transition douce : twilight band ~30° de large
+    float blend = smoothstep(-0.18, 0.30, sunDot);
+    blend = mix(blend, 0.0, nightMode);  // force nuit si nightMode=1
+
+    // Les lumières de ville brillent davantage côté nuit
+    vec4 nightGlow = night * 1.6;
+
+    // Légère spécularité sur les océans côté jour
+    vec3  viewDir  = normalize(-vPos);
+    vec3  halfVec  = normalize(sunDir + viewDir);
+    float spec     = pow(max(dot(normalize(vNormal), halfVec), 0.0), 48.0) * 0.18 * blend;
+
+    vec4 color = mix(nightGlow, day, blend);
+    color.rgb += spec;
+
+    // Légère variation d'exposition selon la latitude (pôles plus sombres)
+    float pole  = 1.0 - abs(vUv.y - 0.5) * 0.4;
+    color.rgb  *= pole;
+
+    gl_FragColor = color;
+  }
+`;
+
+const earthMat = new THREE.ShaderMaterial({
+  uniforms: {
+    dayMap:    { value: dayTex    },
+    nightMap:  { value: nightTex  },
+    normalMap: { value: normalTex },
+    sunDir:    { value: new THREE.Vector3(5, 2, 5).normalize() },
+    nightMode: { value: 0.0 }
+  },
+  vertexShader:   earthVert,
+  fragmentShader: earthFrag
 });
 
-prog(50, 'Chargement des tuiles satellite…');
+const earthMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(1, 72, 72),
+  earthMat
+);
+earthGroup.add(earthMesh);
 
-// ── FOG / ATMOSPHÈRE ────────────────────────────────────
-function applyFog(layer) {
+// ── NUAGES ────────────────────────────────────────────────
+const cloudsMat = new THREE.MeshPhongMaterial({
+  map:         cloudsTex,
+  transparent: true,
+  opacity:     0.55,
+  depthWrite:  false,
+});
+const cloudsMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(1.006, 48, 48),
+  cloudsMat
+);
+earthGroup.add(cloudsMesh);
+let cloudsOn = true;
+
+// ── ATMOSPHÈRE — SHADER GLSL CUSTOM ──────────────────────
+// Halo bleu sur les bords du globe (scattering atmosphérique simplifié)
+const atmosVert = `
+  uniform vec3 viewVec;
+  varying float intensity;
+
+  void main() {
+    vec3  vn  = normalize(normalMatrix * normal);
+    vec3  vv  = normalize(normalMatrix * viewVec);
+    // Limb darkening inversé → bords brillent plus
+    float rim = 1.0 - max(0.0, dot(vn, vv));
+    intensity = pow(rim, 2.8) * 0.85;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+const atmosFrag = `
+  varying float intensity;
+
+  void main() {
+    // Couleur atmosphère : bleu clair au bord, plus saturé au cœur du halo
+    vec3 innerColor = vec3(0.15, 0.55, 1.0);
+    vec3 outerColor = vec3(0.05, 0.25, 0.8);
+    vec3 col = mix(innerColor, outerColor, intensity);
+    gl_FragColor = vec4(col, intensity * 0.7);
+  }
+`;
+
+const atmosMat = new THREE.ShaderMaterial({
+  uniforms:       { viewVec: { value: new THREE.Vector3() } },
+  vertexShader:   atmosVert,
+  fragmentShader: atmosFrag,
+  blending:       THREE.AdditiveBlending,
+  side:           THREE.FrontSide,
+  transparent:    true,
+  depthWrite:     false
+});
+// L'atmosphère est dans la scène (pas dans earthGroup) pour ne pas tourner
+const atmosMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(1.075, 48, 48),
+  atmosMat
+);
+scene.add(atmosMesh);
+
+// ── ÉTOILES — POINTS SHADER CUSTOM ───────────────────────
+// 14 000 étoiles distribuées sur une sphère, tailles variées,
+// shader avec disques ronds et scintillement subtil
+const STAR_COUNT = 14000;
+const starPositions = new Float32Array(STAR_COUNT * 3);
+const starSizes     = new Float32Array(STAR_COUNT);
+const starAlphas    = new Float32Array(STAR_COUNT);
+
+for (let i = 0; i < STAR_COUNT; i++) {
+  const phi   = Math.acos(2 * Math.random() - 1);
+  const theta = Math.random() * Math.PI * 2;
+  const r     = 150 + Math.random() * 250;
+  starPositions[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
+  starPositions[i * 3 + 1] = r * Math.cos(phi);
+  starPositions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+  starSizes[i]  = 0.8 + Math.random() * 2.2;  // size variation
+  starAlphas[i] = 0.4 + Math.random() * 0.6;  // brightness variation
+}
+
+const starsGeo = new THREE.BufferGeometry();
+starsGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+starsGeo.setAttribute('aSize',    new THREE.BufferAttribute(starSizes,     1));
+starsGeo.setAttribute('aAlpha',   new THREE.BufferAttribute(starAlphas,    1));
+
+const starsVert = `
+  attribute float aSize;
+  attribute float aAlpha;
+  varying   float vAlpha;
+  uniform   float uTime;
+
+  // Scintillement : chaque étoile a un rythme légèrement différent
+  float hash(float n) { return fract(sin(n) * 43758.5453); }
+
+  void main() {
+    vAlpha = aAlpha * (0.75 + 0.25 * sin(uTime * 2.0 + hash(aSize * 100.0) * 6.28));
+    vec4 mvPos   = modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = aSize * (300.0 / -mvPos.z);
+    gl_Position  = projectionMatrix * mvPos;
+  }
+`;
+const starsFrag = `
+  varying float vAlpha;
+
+  void main() {
+    // Disque rond avec falloff doux
+    vec2  d = gl_PointCoord - 0.5;
+    float r = dot(d, d) * 4.0;
+    if (r > 1.0) discard;
+    float a = (1.0 - r) * (1.0 - r) * vAlpha;
+    // Légère teinte : certaines étoiles légèrement jaunes/bleues
+    vec3 col = mix(vec3(0.9, 0.95, 1.0), vec3(1.0, 0.97, 0.85), fract(vAlpha * 7.3));
+    gl_FragColor = vec4(col, a);
+  }
+`;
+
+const starsMat = new THREE.ShaderMaterial({
+  uniforms:       { uTime: { value: 0 } },
+  vertexShader:   starsVert,
+  fragmentShader: starsFrag,
+  blending:       THREE.AdditiveBlending,
+  transparent:    true,
+  depthWrite:     false,
+  depthTest:      true
+});
+
+scene.add(new THREE.Points(starsGeo, starsMat));
+
+// ── LUMIÈRE ───────────────────────────────────────────────
+const sunLight = new THREE.DirectionalLight(0xfff5e8, 1.3);
+sunLight.position.set(5, 2, 5);
+scene.add(sunLight);
+// Lumière ambiante très faible — espace profond
+scene.add(new THREE.AmbientLight(0x0a1020, 0.5));
+
+// ── CONTROLS ─────────────────────────────────────────────
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping  = true;
+controls.dampingFactor  = 0.07;
+controls.minDistance    = 1.14;
+controls.maxDistance    = 14;
+controls.rotateSpeed    = 0.45;
+controls.zoomSpeed      = 0.85;
+controls.autoRotate     = true;
+controls.autoRotateSpeed = 0.22;
+controls.enablePan      = false;
+controls.target.set(0, 0, 0);
+
+// Stop auto-rotate quand l'utilisateur touche le globe
+renderer.domElement.addEventListener('pointerdown', () => { controls.autoRotate = false; });
+
+// ── BOUCLE D'ANIMATION ────────────────────────────────────
+let clock = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  clock += 0.001;
+
+  // Nuages dérivent lentement
+  cloudsMesh.rotation.y += 0.00007;
+
+  // Soleil tourne lentement (simulation du temps)
+  const sunAngle = clock * 0.04;
+  sunLight.position.set(Math.cos(sunAngle) * 8, 2, Math.sin(sunAngle) * 8);
+  earthMat.uniforms.sunDir.value
+    .copy(sunLight.position)
+    .applyMatrix4(new THREE.Matrix4().copy(earthGroup.matrixWorld).invert())
+    .normalize();
+
+  // Atmosphère : viewVec = direction caméra → centre dans l'espace de la sphère
+  const localCam = earthGroup.worldToLocal(camera.position.clone());
+  atmosMat.uniforms.viewVec.value.copy(localCam).normalize();
+
+  // Scintillement étoiles
+  starsMat.uniforms.uTime.value = clock;
+
+  // Mise à jour info bar
+  updateInfoBar();
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+// ── RESIZE ───────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ═══════════════════════════════════════════════════════════
+//  MATHS : lat/lng ↔ vecteur 3D sur la sphère
+// ═══════════════════════════════════════════════════════════
+
+// lat/lng → vecteur 3D (espace local earthGroup)
+function latLngToVec3(lat, lng) {
+  const phi   = (90 - lat) * Math.PI / 180;
+  const theta = (lng + 180) * Math.PI / 180;
+  return new THREE.Vector3(
+    -Math.sin(phi) * Math.cos(theta),
+     Math.cos(phi),
+     Math.sin(phi) * Math.sin(theta)
+  );
+}
+
+// Vecteur 3D (espace local earthGroup) → lat/lng
+function vec3ToLatLng(v) {
+  const len = v.length();
+  const lat = 90 - Math.acos(Math.max(-1, Math.min(1, v.y / len))) * 180 / Math.PI;
+  let theta  = Math.atan2(v.z, -v.x);
+  if (theta < 0) theta += 2 * Math.PI;
+  const lng  = theta * 180 / Math.PI - 180;
+  return { lat, lng: ((lng + 540) % 360) - 180 };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INTERACTION — CLIC / TOUCH SUR LE GLOBE
+// ═══════════════════════════════════════════════════════════
+const raycaster = new THREE.Raycaster();
+let   pointerDown = null;
+
+renderer.domElement.addEventListener('pointerdown', e => {
+  pointerDown = { x: e.clientX, y: e.clientY };
+});
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!pointerDown) return;
+  const dx = Math.abs(e.clientX - pointerDown.x);
+  const dy = Math.abs(e.clientY - pointerDown.y);
+  if (dx < 8 && dy < 8) onGlobeClick(e.clientX, e.clientY);
+  pointerDown = null;
+});
+
+function onGlobeClick(cx, cy) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  raycaster.setFromCamera({
+    x:  ((cx - rect.left) / rect.width)  * 2 - 1,
+    y: -((cy - rect.top)  / rect.height) * 2 + 1
+  }, camera);
+  const hits = raycaster.intersectObject(earthMesh);
+  if (!hits.length) return;
+  // Convertir le point 3D monde → espace local earthGroup → lat/lng
+  const local = earthGroup.worldToLocal(hits[0].point.clone());
+  const { lat, lng } = vec3ToLatLng(local);
+  showPlaceCard(lat, lng);
+}
+
+// ── PLACE CARD ───────────────────────────────────────────
+let curPlace = null;
+
+async function showPlaceCard(lat, lng) {
+  let name = `${lat.toFixed(3)}°, ${lng.toFixed(3)}°`;
   try {
-    map.setFog({
-      color: layer === 'satellite' ? 'rgb(10,20,50)' : 'rgb(200,210,230)',
-      'high-color': layer === 'satellite' ? 'rgb(40,90,180)' : 'rgb(100,160,240)',
-      'horizon-blend': 0.07,
-      'space-color': 'rgb(3,5,15)',
-      'star-intensity': layer === 'satellite' ? 0.5 : 0.15
-    });
-  } catch(e) {}
+    const r = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+      { headers: { 'Accept-Language': 'fr' } }
+    );
+    const d = await r.json();
+    if (d.display_name) name = d.display_name.split(',').slice(0, 2).join(', ').trim();
+  } catch {}
+  curPlace = { name, lat, lng };
+  document.getElementById('pc-name').textContent = name;
+  document.getElementById('pc-ll').textContent   = `${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E`;
+  document.getElementById('place-card').classList.add('show');
 }
 
-map.on('style.load', () => {
-  applyFog(curLayer);
-  prog(80, 'Atmosphère configurée…');
+document.getElementById('pc-x').addEventListener('click', () => {
+  document.getElementById('place-card').classList.remove('show');
+});
+document.getElementById('pc-fly').addEventListener('click', () => {
+  if (curPlace) flyTo(curPlace.lat, curPlace.lng, 1.6);
+  document.getElementById('place-card').classList.remove('show');
+});
+document.getElementById('pc-copy').addEventListener('click', () => {
+  if (!curPlace) return;
+  navigator.clipboard.writeText(`${curPlace.lat.toFixed(6)}, ${curPlace.lng.toFixed(6)}`).catch(() => {});
+  toast('📋 Copié !');
+});
+document.getElementById('pc-gm').addEventListener('click', () => {
+  if (curPlace) window.open(`https://maps.google.com/?q=${curPlace.lat},${curPlace.lng}`, '_blank');
 });
 
-map.on('load', () => {
-  prog(100, 'Prêt !');
-  setTimeout(() => {
-    const el = document.getElementById('loader');
-    if (!el) return;
-    el.style.opacity = '0';
-    setTimeout(() => el.remove(), 700);
-  }, 400);
-});
+// ═══════════════════════════════════════════════════════════
+//  FLY TO — Animation caméra vers un lieu
+// ═══════════════════════════════════════════════════════════
+function flyTo(lat, lng, targetDist = 1.8) {
+  controls.autoRotate = false;
+  controls.enabled    = false;
 
-// Fallback si le chargement prend trop de temps
-setTimeout(() => {
-  const el = document.getElementById('loader');
-  if (el) { el.style.opacity = '0'; setTimeout(() => el.remove(), 700); }
-}, 8000);
+  // Convertir lat/lng → position 3D monde
+  const localPt = latLngToVec3(lat, lng);
+  const worldPt = earthGroup.localToWorld(localPt.clone());
+  const dir      = worldPt.clone().normalize();
+  const targetPos = dir.multiplyScalar(targetDist);
 
-// ── LAYER SWITCHER ──────────────────────────────────────
-let curLayer = 'satellite';
-document.querySelectorAll('.l-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const l = btn.dataset.layer;
-    if (l === curLayer) return;
-    curLayer = l;
-    document.querySelectorAll('.l-btn').forEach(b => b.classList.remove('on'));
-    btn.classList.add('on');
-    map.setStyle(makeStyle(l));
-  });
-});
+  const startPos = camera.position.clone();
+  const t0 = performance.now();
+  const dur = 2400;
 
-// ── INFO BAR ────────────────────────────────────────────
-map.on('move', () => {
-  const c = map.getCenter();
-  document.getElementById('v-lat').textContent  = c.lat.toFixed(4) + '°';
-  document.getElementById('v-lng').textContent  = c.lng.toFixed(4) + '°';
-  document.getElementById('v-zoom').textContent = map.getZoom().toFixed(1);
-});
-map.on('mousemove', e => {
-  document.getElementById('v-lat').textContent  = e.lngLat.lat.toFixed(4) + '°';
-  document.getElementById('v-lng').textContent  = e.lngLat.lng.toFixed(4) + '°';
-});
+  function step(now) {
+    const t    = Math.min((now - t0) / dur, 1);
+    // Ease cubic in-out
+    const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    camera.position.lerpVectors(startPos, targetPos, ease);
+    camera.lookAt(0, 0, 0);
+    if (t < 1) {
+      requestAnimationFrame(step);
+    } else {
+      controls.target.set(0, 0, 0);
+      controls.update();
+      controls.enabled = true;
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INFO BAR — Coordonnées du centre de l'écran
+// ═══════════════════════════════════════════════════════════
+function updateInfoBar() {
+  raycaster.setFromCamera({ x: 0, y: 0 }, camera);
+  const hits = raycaster.intersectObject(earthMesh);
+  if (hits.length) {
+    const local = earthGroup.worldToLocal(hits[0].point.clone());
+    const { lat, lng } = vec3ToLatLng(local);
+    document.getElementById('v-lat').textContent  = lat.toFixed(4) + '°';
+    document.getElementById('v-lng').textContent  = lng.toFixed(4) + '°';
+  }
+  const d = camera.position.length();
+  document.getElementById('v-zoom').textContent = d.toFixed(2) + ' UA';
+}
+
 document.getElementById('info-bar').addEventListener('click', () => {
   const lat = document.getElementById('v-lat').textContent;
   const lng = document.getElementById('v-lng').textContent;
@@ -443,86 +664,118 @@ document.getElementById('info-bar').addEventListener('click', () => {
   toast('📋 Coordonnées copiées !');
 });
 
-// ── CLIC SUR LA CARTE ───────────────────────────────────
-let curPlace = null;
-map.on('click', async e => {
-  const { lng, lat } = e.lngLat;
-  let name = lat.toFixed(3) + '°, ' + lng.toFixed(3) + '°';
-  try {
-    const r = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
-      { headers: { 'Accept-Language': 'fr' } }
-    );
-    const d = await r.json();
-    if (d.display_name) name = d.display_name.split(',').slice(0, 2).join(',').trim();
-  } catch (err) {}
-  curPlace = { name, lat, lng };
-  document.getElementById('pc-name').textContent = name;
-  document.getElementById('pc-ll').textContent   = lat.toFixed(5) + '°N, ' + lng.toFixed(5) + '°E';
-  document.getElementById('place-card').classList.add('show');
-});
+// ═══════════════════════════════════════════════════════════
+//  BOUTONS UI
+// ═══════════════════════════════════════════════════════════
 
-document.getElementById('pc-x').addEventListener('click', () => {
-  document.getElementById('place-card').classList.remove('show');
-});
-document.getElementById('pc-fly').addEventListener('click', () => {
-  if (!curPlace) return;
-  map.flyTo({ center: [curPlace.lng, curPlace.lat], zoom: 10, duration: 2200, essential: true });
-  document.getElementById('place-card').classList.remove('show');
-});
-document.getElementById('pc-copy').addEventListener('click', () => {
-  if (!curPlace) return;
-  navigator.clipboard.writeText(curPlace.lat.toFixed(6) + ', ' + curPlace.lng.toFixed(6)).catch(() => {});
-  toast('📋 Copié !');
-});
-document.getElementById('pc-gm').addEventListener('click', () => {
-  if (!curPlace) return;
-  window.open('https://maps.google.com/?q=' + curPlace.lat + ',' + curPlace.lng, '_blank');
-});
-
-// ── GÉOLOCALISATION ─────────────────────────────────────
+// Géolocalisation
 document.getElementById('btn-geo').addEventListener('click', () => {
   const btn = document.getElementById('btn-geo');
   if (!navigator.geolocation) { toast('Géolocalisation non disponible'); return; }
   btn.classList.add('on');
-  navigator.geolocation.getCurrentPosition(pos => {
-    map.flyTo({
-      center: [pos.coords.longitude, pos.coords.latitude],
-      zoom: 12, duration: 2500, essential: true
-    });
-    toast('📍 Position trouvée !');
-    setTimeout(() => btn.classList.remove('on'), 3000);
-  }, () => {
-    btn.classList.remove('on');
-    toast('Géolocalisation refusée');
-  }, { enableHighAccuracy: true, timeout: 10000 });
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      flyTo(pos.coords.latitude, pos.coords.longitude, 1.5);
+      toast('📍 Position trouvée !');
+      setTimeout(() => btn.classList.remove('on'), 3000);
+    },
+    () => { btn.classList.remove('on'); toast('Géolocalisation refusée'); },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
 });
 
-// ── RESET ───────────────────────────────────────────────
+// Toggle auto-rotation
+const spinBtn = document.getElementById('btn-spin');
+spinBtn.classList.add('on');
+spinBtn.addEventListener('click', () => {
+  controls.autoRotate = !controls.autoRotate;
+  spinBtn.classList.toggle('on', controls.autoRotate);
+  toast(controls.autoRotate ? '🔄 Rotation activée' : '⏸ Rotation arrêtée');
+});
+
+// Reset
 document.getElementById('btn-reset').addEventListener('click', () => {
-  map.flyTo({ center: [10, 20], zoom: 1.5, pitch: 0, bearing: 0, duration: 2000, essential: true });
+  controls.autoRotate = false;
+  controls.enabled    = false;
   document.getElementById('place-card').classList.remove('show');
+  const startPos = camera.position.clone();
+  const targetPos = new THREE.Vector3(0, 0, 2.8);
+  const t0 = performance.now();
+  function step(now) {
+    const t    = Math.min((now - t0) / 1800, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+    camera.position.lerpVectors(startPos, targetPos, ease);
+    camera.lookAt(0, 0, 0);
+    if (t < 1) { requestAnimationFrame(step); }
+    else {
+      controls.target.set(0, 0, 0);
+      controls.update();
+      controls.enabled = true;
+      controls.autoRotate = true;
+      spinBtn.classList.add('on');
+    }
+  }
+  requestAnimationFrame(step);
 });
 
-// ── ZOOM ────────────────────────────────────────────────
-document.getElementById('btn-zin').addEventListener('click',  () => map.zoomIn({ duration: 300 }));
-document.getElementById('btn-zout').addEventListener('click', () => map.zoomOut({ duration: 300 }));
+// Zoom +/−
+document.getElementById('btn-zin').addEventListener('click', () => {
+  const d   = camera.position.length();
+  const min = controls.minDistance;
+  if (d <= min + 0.01) return;
+  const newD = Math.max(min, d - 0.4);
+  camera.position.normalize().multiplyScalar(newD);
+  controls.update();
+});
+document.getElementById('btn-zout').addEventListener('click', () => {
+  const d   = camera.position.length();
+  const max = controls.maxDistance;
+  if (d >= max - 0.01) return;
+  const newD = Math.min(max, d + 0.4);
+  camera.position.normalize().multiplyScalar(newD);
+  controls.update();
+});
 
-// ── RECHERCHE ───────────────────────────────────────────
+// Layers
+document.querySelectorAll('.l-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const layer = btn.dataset.layer;
+    if (layer === 'clouds') {
+      cloudsOn = !cloudsOn;
+      cloudsMesh.visible = cloudsOn;
+      btn.classList.toggle('on', cloudsOn);
+      toast(cloudsOn ? '☁️ Nuages activés' : '☀️ Ciel dégagé');
+    } else if (layer === 'night') {
+      const isOn = btn.classList.toggle('on');
+      earthMat.uniforms.nightMode.value = isOn ? 1.0 : 0.0;
+      toast(isOn ? '🌙 Mode nuit' : '🌍 Mode réaliste');
+    } else if (layer === 'satellite') {
+      // satellite est toujours actif (c'est le mode principal)
+      btn.classList.add('on');
+    }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+//  RECHERCHE — Nominatim (geocoding seulement, pas de tiles)
+// ═══════════════════════════════════════════════════════════
 const inp = document.getElementById('search-input');
 const ac  = document.getElementById('autocomplete');
 const clr = document.getElementById('s-clear');
-let st = null;
+let searchTimer = null;
 
 inp.addEventListener('input', () => {
   const q = inp.value.trim();
   clr.style.display = q ? 'flex' : 'none';
-  clearTimeout(st);
+  clearTimeout(searchTimer);
   if (q.length < 2) { ac.style.display = 'none'; return; }
-  st = setTimeout(() => doSearch(q), 320);
+  searchTimer = setTimeout(() => doSearch(q), 320);
 });
 clr.addEventListener('click', () => {
-  inp.value = ''; clr.style.display = 'none'; ac.style.display = 'none'; inp.focus();
+  inp.value = '';
+  clr.style.display = 'none';
+  ac.style.display  = 'none';
+  inp.focus();
 });
 
 async function doSearch(q) {
@@ -530,35 +783,36 @@ async function doSearch(q) {
     const r = await fetch(
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&accept-language=fr`
     );
-    const data = await r.json();
-    renderAC(data);
+    renderAC(await r.json());
   } catch { ac.style.display = 'none'; }
 }
 
-const ICO = { city:'🏙', town:'🏘', village:'🏡', country:'🌍', administrative:'📍', state:'📍', airport:'✈️', hotel:'🏨', restaurant:'🍽', museum:'🏛', park:'🌿' };
+const ICO = { city:'🏙', town:'🏘', village:'🏡', country:'🌍', administrative:'📍', state:'📍', airport:'✈️', hotel:'🏨', restaurant:'🍽', museum:'🏛', park:'🌿', mountain_pass:'⛰️' };
 
 function renderAC(results) {
   if (!results.length) { ac.style.display = 'none'; return; }
   ac.innerHTML = '';
   results.forEach(item => {
-    const p    = item.display_name.split(',');
-    const main = p[0].trim();
-    const sub  = p.slice(1, 3).join(',').trim();
-    const ico  = ICO[item.type] || ICO[item.class] || '📍';
-    const d = document.createElement('div');
-    d.className = 'ac-row';
-    d.innerHTML = `<div class="ac-ico">${ico}</div><div><div class="ac-main">${main}</div><div class="ac-sub">${sub}</div></div>`;
-    d.addEventListener('click', () => {
-      const lat = parseFloat(item.lat), lng = parseFloat(item.lon);
-      const z   = item.type === 'country' ? 4 : item.type === 'state' ? 6 : 10;
-      map.flyTo({ center: [lng, lat], zoom: z, duration: 2200, essential: true });
+    const parts = item.display_name.split(',');
+    const main  = parts[0].trim();
+    const sub   = parts.slice(1, 3).join(', ').trim();
+    const ico   = ICO[item.type] || ICO[item.class] || '📍';
+    const row   = document.createElement('div');
+    row.className = 'ac-row';
+    row.innerHTML = `<div class="ac-ico">${ico}</div><div><div class="ac-main">${main}</div><div class="ac-sub">${sub}</div></div>`;
+    row.addEventListener('click', () => {
+      const lat = parseFloat(item.lat);
+      const lng = parseFloat(item.lon);
+      const dist = item.type === 'country' ? 3.5 : item.type === 'state' ? 2.5 : 1.6;
+      flyTo(lat, lng, dist);
       curPlace = { name: main, lat, lng };
       document.getElementById('pc-name').textContent = main;
-      document.getElementById('pc-ll').textContent   = lat.toFixed(5) + '°N, ' + lng.toFixed(5) + '°E';
+      document.getElementById('pc-ll').textContent   = `${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E`;
       document.getElementById('place-card').classList.add('show');
-      inp.value = main; ac.style.display = 'none';
+      inp.value = main;
+      ac.style.display = 'none';
     });
-    ac.appendChild(d);
+    ac.appendChild(row);
   });
   ac.style.display = 'block';
 }
@@ -574,13 +828,32 @@ document.addEventListener('click', e => {
   if (!e.target.closest('#search-box')) ac.style.display = 'none';
 });
 
-// ── TOAST ────────────────────────────────────────────────
-let tt = null;
-function toast(m) {
+// ═══════════════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════════════
+let toastTimer = null;
+function toast(msg) {
   const t = document.getElementById('toast');
-  t.textContent = m; t.classList.add('show');
-  clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2200);
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
 }
+
+// ═══════════════════════════════════════════════════════════
+//  LOADER HIDE
+// ═══════════════════════════════════════════════════════════
+function hideLoader() {
+  prog(100, 'Prêt !');
+  setTimeout(() => {
+    const el = document.getElementById('loader');
+    if (!el) return;
+    el.style.opacity = '0';
+    setTimeout(() => el.remove(), 800);
+  }, 500);
+}
+// Fallback si les textures mettent trop de temps
+setTimeout(hideLoader, 9000);
 </script>
 
 </body>
