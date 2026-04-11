@@ -7,853 +7,409 @@
 <title>Globe 3D</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-
 <style>
-*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-html, body { width:100%; height:100%; overflow:hidden; background:#000308; font-family:'Outfit',sans-serif; }
-
-#c { position:absolute; inset:0; display:block; }
-
-/* ── LOADER ── */
-#loader {
-  position:fixed; inset:0; z-index:9999;
-  background:#000308;
-  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
-  transition:opacity .7s ease;
-}
-.loader-dot {
-  width:60px; height:60px; border-radius:50%;
-  background:radial-gradient(circle at 30% 30%, #80d8ff, #0277bd 55%, #01579b 80%, #001f3f);
-  box-shadow:0 0 40px rgba(79,195,247,0.6), 0 0 80px rgba(2,119,189,0.3);
-  animation:spin 8s linear infinite, pulse 2.5s ease-in-out infinite;
-}
-@keyframes spin  { to { transform:rotate(360deg); } }
-@keyframes pulse { 0%,100%{box-shadow:0 0 40px rgba(79,195,247,0.6)} 50%{box-shadow:0 0 70px rgba(79,195,247,0.9)} }
-#loader h1 {
-  font-size:30px; font-weight:700; letter-spacing:-0.5px;
-  background:linear-gradient(135deg,#fff 30%,#4fc3f7);
-  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-}
-#loader-bar { width:160px; height:2px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden; }
-#loader-fill { height:100%; width:5%; background:linear-gradient(90deg,#4fc3f7,#81d4fa); border-radius:2px; transition:width .4s ease; }
-#loader-msg { font-size:11px; color:rgba(255,255,255,0.3); letter-spacing:1.5px; text-transform:uppercase; }
-
-/* ── SEARCH ── */
-#search-box {
-  position:fixed; top:max(16px,env(safe-area-inset-top)); left:50%; transform:translateX(-50%);
-  z-index:100; width:min(440px,calc(100vw - 24px));
-}
-#search-inner {
-  display:flex; align-items:center; gap:10px;
-  background:rgba(10,12,20,0.92);
-  backdrop-filter:blur(24px) saturate(180%); -webkit-backdrop-filter:blur(24px) saturate(180%);
-  border:1px solid rgba(255,255,255,0.11); border-radius:16px; padding:0 15px; height:50px;
-  box-shadow:0 4px 30px rgba(0,0,0,0.9);
-  transition:border-color .2s, box-shadow .2s;
-}
-#search-inner:focus-within { border-color:rgba(79,195,247,0.5); box-shadow:0 4px 30px rgba(0,0,0,0.9),0 0 0 3px rgba(79,195,247,0.15); }
-#search-input { flex:1; border:none; background:transparent; color:#fff; font-family:'Outfit',sans-serif; font-size:15px; outline:none; min-width:0; }
-#search-input::placeholder { color:rgba(255,255,255,0.25); }
-.s-icon { color:rgba(255,255,255,0.3); flex-shrink:0; }
-#s-clear { background:rgba(255,255,255,0.1); border:none; border-radius:50%; width:22px; height:22px; color:rgba(255,255,255,0.5); cursor:pointer; font-size:14px; display:none; align-items:center; justify-content:center; flex-shrink:0; }
-#autocomplete { margin-top:7px; background:rgba(10,12,20,0.97); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border:1px solid rgba(255,255,255,0.1); border-radius:14px; overflow:hidden; display:none; box-shadow:0 10px 40px rgba(0,0,0,0.9); }
-.ac-row { display:flex; align-items:center; gap:11px; padding:12px 15px; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.05); transition:background .1s; -webkit-user-select:none; }
-.ac-row:last-child { border-bottom:none; }
-.ac-row:active { background:rgba(79,195,247,0.1); }
-.ac-ico { width:32px; height:32px; border-radius:9px; background:rgba(79,195,247,0.12); display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
-.ac-main { font-size:14px; font-weight:500; color:#fff; }
-.ac-sub  { font-size:11.5px; color:rgba(255,255,255,0.35); margin-top:1px; }
-
-/* ── RIGHT PANEL ── */
-#right-panel { position:fixed; top:max(16px,env(safe-area-inset-top)); right:14px; z-index:100; display:flex; flex-direction:column; gap:8px; }
-.r-btn { width:44px; height:44px; background:rgba(10,12,20,0.92); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.1); border-radius:13px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:rgba(255,255,255,0.7); box-shadow:0 2px 16px rgba(0,0,0,0.8); transition:transform .12s, background .12s; user-select:none; -webkit-user-select:none; font-size:18px; }
-.r-btn:active { transform:scale(1.07); }
-.r-btn.on { color:#4fc3f7; border-color:rgba(79,195,247,0.4); }
-
-/* ── LAYER PILLS ── */
-#layers { position:fixed; bottom:max(100px,calc(env(safe-area-inset-bottom) + 90px)); right:14px; z-index:100; display:flex; flex-direction:column; gap:7px; }
-.l-btn { padding:8px 13px; background:rgba(10,12,20,0.92); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.1); border-radius:11px; color:rgba(255,255,255,0.6); font-family:'Outfit',sans-serif; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:5px; box-shadow:0 2px 14px rgba(0,0,0,0.7); transition:transform .12s,background .12s,color .12s; white-space:nowrap; user-select:none; -webkit-user-select:none; }
-.l-btn:active { transform:scale(1.04); }
-.l-btn.on { color:#4fc3f7; border-color:rgba(79,195,247,0.38); background:rgba(79,195,247,0.1); }
-
-/* ── ZOOM ── */
-#zoom-wrap { position:fixed; bottom:max(100px,calc(env(safe-area-inset-bottom) + 90px)); left:14px; z-index:100; display:flex; flex-direction:column; gap:6px; }
-.z-btn { width:42px; height:42px; background:rgba(10,12,20,0.92); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.1); border-radius:12px; color:rgba(255,255,255,0.75); font-size:22px; font-weight:300; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 2px 14px rgba(0,0,0,0.7); transition:transform .12s; user-select:none; -webkit-user-select:none; }
-.z-btn:active { transform:scale(1.07); }
-
-/* ── INFO BAR ── */
-#info-bar { position:fixed; bottom:max(18px,env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); z-index:100; display:flex; align-items:stretch; background:rgba(10,12,20,0.92); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border:1px solid rgba(255,255,255,0.1); border-radius:14px; overflow:hidden; box-shadow:0 4px 30px rgba(0,0,0,0.9); cursor:pointer; user-select:none; }
-.i-seg { padding:9px 16px; display:flex; flex-direction:column; align-items:center; gap:2px; border-right:1px solid rgba(255,255,255,0.06); transition:background .1s; min-width:88px; }
-.i-seg:last-child { border-right:none; }
-.i-seg:active { background:rgba(255,255,255,0.06); }
-.i-lbl { font-size:9.5px; color:rgba(255,255,255,0.28); text-transform:uppercase; letter-spacing:1px; font-weight:500; }
-.i-val { font-size:12.5px; color:#fff; font-weight:500; font-variant-numeric:tabular-nums; }
-
-/* ── PLACE CARD ── */
-#place-card { position:fixed; bottom:max(88px,calc(env(safe-area-inset-bottom) + 78px)); left:50%; transform:translateX(-50%) translateY(14px); z-index:100; width:min(340px,calc(100vw - 28px)); background:rgba(10,12,20,0.97); backdrop-filter:blur(30px); -webkit-backdrop-filter:blur(30px); border:1px solid rgba(255,255,255,0.11); border-radius:20px; padding:17px 17px 15px; box-shadow:0 12px 50px rgba(0,0,0,0.9); opacity:0; pointer-events:none; transition:opacity .25s, transform .25s cubic-bezier(.32,1.2,.4,1); }
-#place-card.show { opacity:1; pointer-events:all; transform:translateX(-50%) translateY(0); }
-#pc-x { position:absolute; top:12px; right:12px; background:rgba(255,255,255,0.08); border:none; border-radius:50%; width:26px; height:26px; color:rgba(255,255,255,0.5); cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; }
-#pc-name { font-size:16px; font-weight:600; color:#fff; padding-right:32px; line-height:1.35; margin-bottom:3px; }
-#pc-ll   { font-size:11.5px; color:rgba(255,255,255,0.35); margin-bottom:13px; }
-#pc-btns { display:flex; gap:7px; }
-.pc-b { flex:1; background:rgba(79,195,247,0.1); border:1px solid rgba(79,195,247,0.2); border-radius:11px; padding:9px 4px; color:#4fc3f7; font-family:'Outfit',sans-serif; font-size:11px; font-weight:600; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px; transition:background .12s; }
-.pc-b:active { background:rgba(79,195,247,0.22); }
-.pc-b svg { width:16px; height:16px; }
-
-/* ── TOAST ── */
-#toast { position:fixed; top:78px; left:50%; transform:translateX(-50%); background:rgba(10,12,20,0.97); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:8px 18px; color:#fff; font-size:13px; font-weight:500; z-index:200; opacity:0; pointer-events:none; transition:opacity .22s; white-space:nowrap; backdrop-filter:blur(20px); }
-#toast.show { opacity:1; }
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#000205;font-family:'Outfit',sans-serif}
+#c{position:absolute;inset:0;display:block}
+#loader{position:fixed;inset:0;z-index:9999;background:#000205;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .7s ease}
+.loader-dot{width:60px;height:60px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#80d8ff,#0277bd 55%,#01579b 80%,#001f3f);box-shadow:0 0 40px rgba(79,195,247,.6);animation:ldp 2.2s ease-in-out infinite}
+@keyframes ldp{0%,100%{transform:scale(1);box-shadow:0 0 40px rgba(79,195,247,.5)}50%{transform:scale(1.07);box-shadow:0 0 70px rgba(79,195,247,.9)}}
+#loader h1{font-size:30px;font-weight:700;background:linear-gradient(135deg,#fff 30%,#4fc3f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+#loader-bar{width:160px;height:2px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden}
+#loader-fill{height:100%;width:5%;background:linear-gradient(90deg,#4fc3f7,#81d4fa);border-radius:2px;transition:width .35s ease}
+#loader-msg{font-size:11px;color:rgba(255,255,255,.3);letter-spacing:1.5px;text-transform:uppercase}
+#search-box{position:fixed;top:max(16px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:100;width:min(440px,calc(100vw - 24px))}
+#search-inner{display:flex;align-items:center;gap:10px;background:rgba(8,10,18,.92);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:1px solid rgba(255,255,255,.11);border-radius:16px;padding:0 15px;height:50px;box-shadow:0 4px 30px rgba(0,0,0,.9);transition:border-color .2s,box-shadow .2s}
+#search-inner:focus-within{border-color:rgba(79,195,247,.5);box-shadow:0 4px 30px rgba(0,0,0,.9),0 0 0 3px rgba(79,195,247,.14)}
+#search-input{flex:1;border:none;background:transparent;color:#fff;font-family:'Outfit',sans-serif;font-size:15px;outline:none;min-width:0}
+#search-input::placeholder{color:rgba(255,255,255,.25)}
+.s-icon{color:rgba(255,255,255,.3);flex-shrink:0}
+#s-clear{background:rgba(255,255,255,.1);border:none;border-radius:50%;width:22px;height:22px;color:rgba(255,255,255,.5);cursor:pointer;font-size:14px;display:none;align-items:center;justify-content:center;flex-shrink:0}
+#autocomplete{margin-top:7px;background:rgba(8,10,18,.97);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,.1);border-radius:14px;overflow:hidden;display:none;box-shadow:0 10px 40px rgba(0,0,0,.9)}
+.ac-row{display:flex;align-items:center;gap:11px;padding:12px 15px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05);transition:background .1s;-webkit-user-select:none}
+.ac-row:last-child{border-bottom:none}
+.ac-row:active{background:rgba(79,195,247,.1)}
+.ac-ico{width:32px;height:32px;border-radius:9px;background:rgba(79,195,247,.12);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.ac-main{font-size:14px;font-weight:500;color:#fff}
+.ac-sub{font-size:11.5px;color:rgba(255,255,255,.34);margin-top:1px}
+#right-panel{position:fixed;top:max(16px,env(safe-area-inset-top));right:14px;z-index:100;display:flex;flex-direction:column;gap:8px}
+.r-btn{width:44px;height:44px;background:rgba(8,10,18,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.1);border-radius:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(255,255,255,.7);box-shadow:0 2px 16px rgba(0,0,0,.8);transition:transform .12s;user-select:none;-webkit-user-select:none;font-size:18px}
+.r-btn:active{transform:scale(1.07)}
+.r-btn.on{color:#4fc3f7;border-color:rgba(79,195,247,.4)}
+#layers{position:fixed;bottom:max(100px,calc(env(safe-area-inset-bottom) + 90px));right:14px;z-index:100;display:flex;flex-direction:column;gap:7px}
+.l-btn{padding:8px 13px;background:rgba(8,10,18,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.1);border-radius:11px;color:rgba(255,255,255,.6);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;box-shadow:0 2px 14px rgba(0,0,0,.7);transition:transform .12s,background .12s,color .12s;white-space:nowrap;user-select:none;-webkit-user-select:none}
+.l-btn:active{transform:scale(1.04)}
+.l-btn.on{color:#4fc3f7;border-color:rgba(79,195,247,.38);background:rgba(79,195,247,.1)}
+#zoom-wrap{position:fixed;bottom:max(100px,calc(env(safe-area-inset-bottom) + 90px));left:14px;z-index:100;display:flex;flex-direction:column;gap:6px}
+.z-btn{width:42px;height:42px;background:rgba(8,10,18,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.1);border-radius:12px;color:rgba(255,255,255,.75);font-size:22px;font-weight:300;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 14px rgba(0,0,0,.7);transition:transform .12s;user-select:none;-webkit-user-select:none}
+.z-btn:active{transform:scale(1.07)}
+#info-bar{position:fixed;bottom:max(18px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:100;display:flex;align-items:stretch;background:rgba(8,10,18,.92);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,.1);border-radius:14px;overflow:hidden;box-shadow:0 4px 30px rgba(0,0,0,.9);cursor:pointer;user-select:none}
+.i-seg{padding:9px 16px;display:flex;flex-direction:column;align-items:center;gap:2px;border-right:1px solid rgba(255,255,255,.06);transition:background .1s;min-width:88px}
+.i-seg:last-child{border-right:none}
+.i-seg:active{background:rgba(255,255,255,.06)}
+.i-lbl{font-size:9.5px;color:rgba(255,255,255,.28);text-transform:uppercase;letter-spacing:1px;font-weight:500}
+.i-val{font-size:12.5px;color:#fff;font-weight:500;font-variant-numeric:tabular-nums}
+#place-card{position:fixed;bottom:max(88px,calc(env(safe-area-inset-bottom) + 78px));left:50%;transform:translateX(-50%) translateY(14px);z-index:100;width:min(340px,calc(100vw - 28px));background:rgba(8,10,18,.97);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:1px solid rgba(255,255,255,.11);border-radius:20px;padding:17px 17px 15px;box-shadow:0 12px 50px rgba(0,0,0,.9);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s cubic-bezier(.32,1.2,.4,1)}
+#place-card.show{opacity:1;pointer-events:all;transform:translateX(-50%) translateY(0)}
+#pc-x{position:absolute;top:12px;right:12px;background:rgba(255,255,255,.08);border:none;border-radius:50%;width:26px;height:26px;color:rgba(255,255,255,.5);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+#pc-name{font-size:16px;font-weight:600;color:#fff;padding-right:32px;line-height:1.35;margin-bottom:3px}
+#pc-ll{font-size:11.5px;color:rgba(255,255,255,.34);margin-bottom:13px}
+#pc-btns{display:flex;gap:7px}
+.pc-b{flex:1;background:rgba(79,195,247,.1);border:1px solid rgba(79,195,247,.2);border-radius:11px;padding:9px 4px;color:#4fc3f7;font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;transition:background .12s}
+.pc-b:active{background:rgba(79,195,247,.22)}
+.pc-b svg{width:16px;height:16px}
+#toast{position:fixed;top:78px;left:50%;transform:translateX(-50%);background:rgba(8,10,18,.97);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:8px 18px;color:#fff;font-size:13px;font-weight:500;z-index:200;opacity:0;pointer-events:none;transition:opacity .22s;white-space:nowrap;backdrop-filter:blur(20px)}
+#toast.show{opacity:1}
 </style>
-
 </head>
 <body>
-
 <canvas id="c"></canvas>
-
-<!-- LOADER -->
-
 <div id="loader">
   <div class="loader-dot"></div>
   <h1>Globe 3D</h1>
   <div id="loader-bar"><div id="loader-fill"></div></div>
-  <div id="loader-msg">Compilation des shaders…</div>
+  <div id="loader-msg">Compilation GPU…</div>
 </div>
-
-<!-- SEARCH -->
-
 <div id="search-box">
   <div id="search-inner">
-    <svg class="s-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
-      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-    </svg>
+    <svg class="s-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     <input id="search-input" type="text" placeholder="Rechercher un lieu…" autocomplete="off" spellcheck="false"/>
     <button id="s-clear">×</button>
   </div>
   <div id="autocomplete"></div>
 </div>
-
-<!-- RIGHT PANEL -->
-
 <div id="right-panel">
-  <div class="r-btn" id="btn-geo">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-      <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
-    </svg>
-  </div>
-  <div class="r-btn" id="btn-spin" title="Auto-rotation">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-      <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
-    </svg>
-  </div>
+  <div class="r-btn" id="btn-geo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></div>
+  <div class="r-btn on" id="btn-spin"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg></div>
   <div class="r-btn" id="btn-reset">⟳</div>
 </div>
-
-<!-- LAYERS -->
-
 <div id="layers">
-  <button class="l-btn on" data-layer="satellite">🛰 Satellite</button>
   <button class="l-btn on" data-layer="clouds">☁️ Nuages</button>
   <button class="l-btn" data-layer="night">🌙 Nuit</button>
+  <button class="l-btn on" data-layer="atmos">🌐 Atmosphère</button>
 </div>
-
-<!-- ZOOM -->
-
 <div id="zoom-wrap">
   <div class="z-btn" id="btn-zin">+</div>
   <div class="z-btn" id="btn-zout">−</div>
 </div>
-
-<!-- INFO BAR -->
-
 <div id="info-bar">
   <div class="i-seg"><span class="i-lbl">Latitude</span><span class="i-val" id="v-lat">—</span></div>
   <div class="i-seg"><span class="i-lbl">Longitude</span><span class="i-val" id="v-lng">—</span></div>
   <div class="i-seg"><span class="i-lbl">Distance</span><span class="i-val" id="v-zoom">—</span></div>
 </div>
-
-<!-- PLACE CARD -->
-
 <div id="place-card">
   <button id="pc-x">×</button>
   <div id="pc-name">Lieu</div>
   <div id="pc-ll"></div>
   <div id="pc-btns">
-    <button class="pc-b" id="pc-fly">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M5 12h14M12 5l7 7-7 7"/>
-      </svg>Aller
-    </button>
-    <button class="pc-b" id="pc-copy">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <rect x="9" y="9" width="13" height="13" rx="2"/>
-        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
-      </svg>Copier
-    </button>
-    <button class="pc-b" id="pc-gm">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
-        <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
-      </svg>G.Maps
-    </button>
+    <button class="pc-b" id="pc-fly"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>Aller</button>
+    <button class="pc-b" id="pc-copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copier</button>
+    <button class="pc-b" id="pc-gm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>G.Maps</button>
   </div>
 </div>
-
 <div id="toast"></div>
 
 <script>
-// ═══════════════════════════════════════════════════════════
-//  GLOBE 3D — WebGL from scratch with Three.js r128
-//  Aucun service de carte. Tuiles = zéro. Pure sphère 3D.
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+//  GLOBE 3D — Toutes les textures générées par GLSL sur le GPU.
+//  Zero image externe. Zero token. Fonctionne sur tout navigateur.
+// ═══════════════════════════════════════════════════════════════
 
-// ── LOADER ───────────────────────────────────────────────
 const fillEl = document.getElementById('loader-fill');
 const msgEl  = document.getElementById('loader-msg');
-function prog(p, t) {
-  fillEl.style.width = p + '%';
-  if (t) msgEl.textContent = t;
-}
-prog(10, 'Compilation des shaders…');
+function prog(p,t){fillEl.style.width=p+'%';if(t)msgEl.textContent=t;}
 
-// ── SCENE ────────────────────────────────────────────────
+// ── RENDERER ────────────────────────────────────────────────
 const canvas   = document.getElementById('c');
-const scene    = new THREE.Scene();
-const camera   = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.01, 2000);
-camera.position.set(0, 0, 2.8);
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.setClearColor(0x000205,1);
+prog(12,'Renderer WebGL actif…');
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
-renderer.setClearColor(0x000308, 1);
-prog(20, 'Renderer WebGL initialisé…');
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.01, 2000);
+camera.position.set(0,0,2.8);
 
-// ── EARTH GROUP ──────────────────────────────────────────
-// Rotating group that holds Earth + clouds
-// Rotation Y = -PI/2 → Europe/Afrique face à la caméra au départ
-const earthGroup = new THREE.Group();
-earthGroup.rotation.y = -Math.PI / 2;
+// ═══ GLSL : bibliothèque bruit + utilitaires ══════════════════
+const NOISE_LIB = `
+#define PI 3.14159265358979323846
+float hash(vec3 p){p=fract(p*0.3183099+vec3(.1));p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
+float n3(vec3 p){vec3 i=floor(p),f=fract(p),u=f*f*(3.-2.*f);
+  return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),u.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),u.x),u.y),
+             mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),u.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),u.x),u.y),u.z);}
+float fbm(vec3 p){float v=0.,a=.5;for(int i=0;i<7;i++){v+=a*n3(p);a*=.5;p=p*2.09+vec3(1.73,2.71,.97);}return v;}
+float terrain(vec3 p){vec3 q=vec3(fbm(p),fbm(p+vec3(5.2,1.3,2.8)),fbm(p+vec3(1.7,9.2,3.5)));return fbm(p+2.3*q)*2.-1.05;}
+vec3 uvSph(vec2 uv){float lon=(uv.x*2.-1.)*PI,lat=(uv.y-.5)*PI,cl=cos(lat);return vec3(cl*cos(lon),sin(lat),cl*sin(lon));}
+`;
+const QVERT=`varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}`;
+
+// ── Texture JOUR ─────────────────────────────────────────────
+const DAY_FRAG = NOISE_LIB+`
+varying vec2 vUv;
+void main(){
+  vec3 p=uvSph(vUv);
+  float lat=asin(clamp(p.y,-1.,1.)),absL=abs(degrees(lat)),h=terrain(p*1.5);
+  vec3 col;
+  if(h<0.){
+    float d=clamp(-h,0.,1.);
+    col=mix(vec3(.09,.40,.60),vec3(.02,.12,.37),d*d);
+    float ov=n3(p*9.)*.07;col+=vec3(ov*.3,ov,ov*.6);
+  } else {
+    float mo=fbm(p*3.+vec3(10.,5.,0.));
+    if(h<.045){col=vec3(.85,.81,.54);}
+    else if(h<.28){
+      vec3 tr=vec3(.12,.44,.08),tm=vec3(.30,.53,.16),ar=vec3(.70,.60,.30);
+      float m=smoothstep(.33,.55,mo),t=smoothstep(.5,0.,absL/55.);
+      col=mix(ar,mix(tm,tr,t),m);
+    } else if(h<.58){col=mix(vec3(.36,.47,.18),vec3(.44,.38,.26),(h-.28)/.30);}
+    else{col=mix(vec3(.48,.43,.33),vec3(.91,.93,.96),(h-.58)/.42);}
+    float ds=smoothstep(.42,.26,mo)*smoothstep(55.,16.,absL)*smoothstep(0.,.18,h);
+    col=mix(col,vec3(.82,.67,.34),ds*.68);
+    float tr2=smoothstep(28.,0.,absL)*smoothstep(.28,.52,mo)*smoothstep(0.,.20,h);
+    col=mix(col,vec3(.04,.20,.04),tr2*.40);
+  }
+  float ic=smoothstep(64.,83.,absL+n3(p*3.5+vec3(100.))*16.);
+  col=mix(col,vec3(.92,.95,1.),ic);
+  gl_FragColor=vec4(clamp(col,0.,1.),1.);
+}`;
+
+// ── Texture NUIT ─────────────────────────────────────────────
+const NIGHT_FRAG = NOISE_LIB+`
+varying vec2 vUv;
+void main(){
+  vec3 p=uvSph(vUv);float h=terrain(p*1.5);
+  vec3 col=vec3(0.);
+  if(h>.02){
+    float c1=n3(p*7.+vec3(20.,30.,40.)),c2=n3(p*13.+vec3(50.,60.,70.)),mk=c1*c1*c2;
+    if(mk>.23){float b=pow((mk-.23)/.23,1.6);col=vec3(b,b*.83,b*.38)*.92;}
+  }
+  gl_FragColor=vec4(col,1.);
+}`;
+
+// ── Texture NUAGES ────────────────────────────────────────────
+const CLOUD_FRAG = NOISE_LIB+`
+varying vec2 vUv;
+void main(){
+  vec3 p=uvSph(vUv);
+  float absL=abs(degrees(asin(clamp(p.y,-1.,1.))));
+  float cl=fbm((p+vec3(100.,200.,300.))*2.6);
+  float a=smoothstep(.50,.67,cl)*(1.-smoothstep(65.,84.,absL)*.75);
+  a=a*a*.90;
+  gl_FragColor=vec4(a,a,a,1.);
+}`;
+
+// ── Génération GPU ────────────────────────────────────────────
+function makeTex(frag,w,h){
+  const rt=new THREE.WebGLRenderTarget(w,h,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat});
+  const sc=new THREE.Scene(),cam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+  const geo=new THREE.PlaneGeometry(2,2);
+  const mat=new THREE.ShaderMaterial({vertexShader:QVERT,fragmentShader:frag,depthTest:false,depthWrite:false});
+  sc.add(new THREE.Mesh(geo,mat));
+  renderer.setRenderTarget(rt);renderer.setViewport(0,0,w,h);renderer.render(sc,cam);
+  renderer.setRenderTarget(null);renderer.setViewport(0,0,innerWidth,innerHeight);
+  geo.dispose();mat.dispose();return rt.texture;
+}
+
+prog(25,'Terrain procédural…');
+const dayTex   = makeTex(DAY_FRAG,  2048,1024);
+prog(48,'Lumières nocturnes…');
+const nightTex = makeTex(NIGHT_FRAG,2048,1024);
+prog(68,'Couverture nuageuse…');
+const cloudTex = makeTex(CLOUD_FRAG,1024,512);
+prog(80,'Construction scène…');
+
+// ═══ SCENE ═══════════════════════════════════════════════════
+const earthGroup=new THREE.Group();
+earthGroup.rotation.y=-Math.PI/2;
 scene.add(earthGroup);
 
-// ── TEXTURE LOADER ───────────────────────────────────────
-const tl = new THREE.TextureLoader();
-// Textures NASA / Three.js examples — images statiques, pas de tiles API
-const BASE = 'https://threejs.org/examples/textures/planets/';
-let loadedCount = 0;
-function onLoad() {
-  loadedCount++;
-  prog(20 + loadedCount * 18, ['Texture jour…', 'Lumières nocturnes…', 'Nuages…', 'Carte normale…'][loadedCount - 1] || 'Chargement…');
-  if (loadedCount >= 4) hideLoader();
-}
+// ── Shader Terre : blending jour/nuit selon soleil ────────────
+const EVERT=`varying vec2 vUv;varying vec3 vNorm,vViewPos;
+void main(){vUv=uv;vNorm=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.);vViewPos=mv.xyz;gl_Position=projectionMatrix*mv;}`;
+const EFRAG=`
+uniform sampler2D uDay,uNight;uniform vec3 uSun;uniform float uNM;
+varying vec2 vUv;varying vec3 vNorm,vViewPos;
+void main(){
+  vec4 day=texture2D(uDay,vUv),night=texture2D(uNight,vUv)*1.7;
+  float sd=dot(normalize(vNorm),normalize(uSun));
+  float bl=mix(smoothstep(-.20,.28,sd),0.,uNM);
+  vec3 hv=normalize(uSun+normalize(-vViewPos));
+  float sp=pow(max(dot(normalize(vNorm),hv),0.),52.)*.15*bl;
+  vec4 col=mix(night,day,bl);col.rgb+=sp;
+  gl_FragColor=col;
+}`;
 
-const dayTex    = tl.load(BASE + 'earth_atmos_2048.jpg',   onLoad, undefined, () => onLoad());
-const nightTex  = tl.load(BASE + 'earth_lights_2048.png',  onLoad, undefined, () => onLoad());
-const cloudsTex = tl.load(BASE + 'earth_clouds_1024.png',  onLoad, undefined, () => onLoad());
-const normalTex = tl.load(BASE + 'earth_normal_2048.jpg',  onLoad, undefined, () => onLoad());
-
-// ── EARTH — SHADER JOUR/NUIT PERSONNALISÉ ─────────────────
-// Ce shader GLSL mélange la texture jour (Blue Marble NASA)
-// et la texture nuit (city lights) selon l'angle du soleil.
-const earthVert = `
-  varying vec2  vUv;
-  varying vec3  vNormal;
-  varying vec3  vPos;
-  varying vec3  vWorldNormal;
-
-  void main() {
-    vUv          = uv;
-    vNormal      = normalize(normalMatrix * normal);
-    vWorldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
-    vec4 mvPos   = modelViewMatrix * vec4(position, 1.0);
-    vPos         = mvPos.xyz;
-    gl_Position  = projectionMatrix * mvPos;
-  }
-`;
-
-const earthFrag = `
-  uniform sampler2D dayMap;
-  uniform sampler2D nightMap;
-  uniform sampler2D normalMap;
-  uniform vec3      sunDir;
-  uniform float     nightMode;  // 0=réaliste  1=nuit forcée
-
-  varying vec2  vUv;
-  varying vec3  vNormal;
-  varying vec3  vPos;
-  varying vec3  vWorldNormal;
-
-  void main() {
-    vec4 day   = texture2D(dayMap,   vUv);
-    vec4 night = texture2D(nightMap, vUv);
-
-    // Dot produit soleil-normal → côté jour vs nuit
-    float sunDot = dot(normalize(vNormal), normalize(sunDir));
-
-    // Transition douce : twilight band ~30° de large
-    float blend = smoothstep(-0.18, 0.30, sunDot);
-    blend = mix(blend, 0.0, nightMode);  // force nuit si nightMode=1
-
-    // Les lumières de ville brillent davantage côté nuit
-    vec4 nightGlow = night * 1.6;
-
-    // Légère spécularité sur les océans côté jour
-    vec3  viewDir  = normalize(-vPos);
-    vec3  halfVec  = normalize(sunDir + viewDir);
-    float spec     = pow(max(dot(normalize(vNormal), halfVec), 0.0), 48.0) * 0.18 * blend;
-
-    vec4 color = mix(nightGlow, day, blend);
-    color.rgb += spec;
-
-    // Légère variation d'exposition selon la latitude (pôles plus sombres)
-    float pole  = 1.0 - abs(vUv.y - 0.5) * 0.4;
-    color.rgb  *= pole;
-
-    gl_FragColor = color;
-  }
-`;
-
-const earthMat = new THREE.ShaderMaterial({
-  uniforms: {
-    dayMap:    { value: dayTex    },
-    nightMap:  { value: nightTex  },
-    normalMap: { value: normalTex },
-    sunDir:    { value: new THREE.Vector3(5, 2, 5).normalize() },
-    nightMode: { value: 0.0 }
-  },
-  vertexShader:   earthVert,
-  fragmentShader: earthFrag
+const earthMat=new THREE.ShaderMaterial({
+  uniforms:{uDay:{value:dayTex},uNight:{value:nightTex},uSun:{value:new THREE.Vector3(5,3,5).normalize()},uNM:{value:0.}},
+  vertexShader:EVERT,fragmentShader:EFRAG
 });
-
-const earthMesh = new THREE.Mesh(
-  new THREE.SphereGeometry(1, 72, 72),
-  earthMat
-);
+const earthMesh=new THREE.Mesh(new THREE.SphereGeometry(1,80,80),earthMat);
 earthGroup.add(earthMesh);
 
-// ── NUAGES ────────────────────────────────────────────────
-const cloudsMat = new THREE.MeshPhongMaterial({
-  map:         cloudsTex,
-  transparent: true,
-  opacity:     0.55,
-  depthWrite:  false,
-});
-const cloudsMesh = new THREE.Mesh(
-  new THREE.SphereGeometry(1.006, 48, 48),
-  cloudsMat
-);
-earthGroup.add(cloudsMesh);
-let cloudsOn = true;
+// ── Nuages ────────────────────────────────────────────────────
+const cloudMat=new THREE.MeshLambertMaterial({color:0xffffff,alphaMap:cloudTex,transparent:true,depthWrite:false,opacity:.88});
+const cloudMesh=new THREE.Mesh(new THREE.SphereGeometry(1.007,48,48),cloudMat);
+earthGroup.add(cloudMesh);
 
-// ── ATMOSPHÈRE — SHADER GLSL CUSTOM ──────────────────────
-// Halo bleu sur les bords du globe (scattering atmosphérique simplifié)
-const atmosVert = `
-  uniform vec3 viewVec;
-  varying float intensity;
-
-  void main() {
-    vec3  vn  = normalize(normalMatrix * normal);
-    vec3  vv  = normalize(normalMatrix * viewVec);
-    // Limb darkening inversé → bords brillent plus
-    float rim = 1.0 - max(0.0, dot(vn, vv));
-    intensity = pow(rim, 2.8) * 0.85;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
-const atmosFrag = `
-  varying float intensity;
-
-  void main() {
-    // Couleur atmosphère : bleu clair au bord, plus saturé au cœur du halo
-    vec3 innerColor = vec3(0.15, 0.55, 1.0);
-    vec3 outerColor = vec3(0.05, 0.25, 0.8);
-    vec3 col = mix(innerColor, outerColor, intensity);
-    gl_FragColor = vec4(col, intensity * 0.7);
-  }
-`;
-
-const atmosMat = new THREE.ShaderMaterial({
-  uniforms:       { viewVec: { value: new THREE.Vector3() } },
-  vertexShader:   atmosVert,
-  fragmentShader: atmosFrag,
-  blending:       THREE.AdditiveBlending,
-  side:           THREE.FrontSide,
-  transparent:    true,
-  depthWrite:     false
-});
-// L'atmosphère est dans la scène (pas dans earthGroup) pour ne pas tourner
-const atmosMesh = new THREE.Mesh(
-  new THREE.SphereGeometry(1.075, 48, 48),
-  atmosMat
-);
+// ── Atmosphère GLSL ───────────────────────────────────────────
+const AVERT=`uniform vec3 uCam;varying float vR;
+void main(){vec3 n=normalize(normal),v=normalize(uCam-position);float d=abs(dot(n,v));vR=pow(1.-d,3.2)*.85;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`;
+const AFRAG=`varying float vR;
+void main(){vec3 c=mix(vec3(.20,.55,1.),vec3(.04,.18,.75),vR);gl_FragColor=vec4(c,vR*.72);}`;
+const atmosMat=new THREE.ShaderMaterial({uniforms:{uCam:{value:new THREE.Vector3()}},vertexShader:AVERT,fragmentShader:AFRAG,blending:THREE.AdditiveBlending,side:THREE.FrontSide,transparent:true,depthWrite:false});
+const atmosMesh=new THREE.Mesh(new THREE.SphereGeometry(1.08,48,48),atmosMat);
 scene.add(atmosMesh);
 
-// ── ÉTOILES — POINTS SHADER CUSTOM ───────────────────────
-// 14 000 étoiles distribuées sur une sphère, tailles variées,
-// shader avec disques ronds et scintillement subtil
-const STAR_COUNT = 14000;
-const starPositions = new Float32Array(STAR_COUNT * 3);
-const starSizes     = new Float32Array(STAR_COUNT);
-const starAlphas    = new Float32Array(STAR_COUNT);
+// ── Étoiles ───────────────────────────────────────────────────
+const NS=12000,sp=new Float32Array(NS*3),ss=new Float32Array(NS),sa=new Float32Array(NS);
+for(let i=0;i<NS;i++){const ph=Math.acos(2*Math.random()-1),th=Math.random()*Math.PI*2,r=180+Math.random()*240;sp[i*3]=r*Math.sin(ph)*Math.cos(th);sp[i*3+1]=r*Math.cos(ph);sp[i*3+2]=r*Math.sin(ph)*Math.sin(th);ss[i]=.7+Math.random()*2.3;sa[i]=.35+Math.random()*.65;}
+const sGeo=new THREE.BufferGeometry();sGeo.setAttribute('position',new THREE.BufferAttribute(sp,3));sGeo.setAttribute('aS',new THREE.BufferAttribute(ss,1));sGeo.setAttribute('aA',new THREE.BufferAttribute(sa,1));
+const SVRT=`attribute float aS,aA;varying float vA;uniform float uT;float hh(float n){return fract(sin(n*127.1)*43758.5);}
+void main(){vA=aA*(.72+.28*sin(uT*1.8+hh(aS*137.5)*6.28));vec4 mv=modelViewMatrix*vec4(position,1.);gl_PointSize=aS*(280./-mv.z);gl_Position=projectionMatrix*mv;}`;
+const SFRAG=`varying float vA;void main(){vec2 d=gl_PointCoord-.5;float r=dot(d,d)*4.;if(r>1.)discard;float a=(1.-r)*(1.-r)*vA;vec3 c=mix(vec3(.88,.94,1.),vec3(1.,.96,.82),fract(vA*5.7));gl_FragColor=vec4(c,a);}`;
+const starMat=new THREE.ShaderMaterial({uniforms:{uT:{value:0}},vertexShader:SVRT,fragmentShader:SFRAG,blending:THREE.AdditiveBlending,transparent:true,depthWrite:false});
+scene.add(new THREE.Points(sGeo,starMat));
 
-for (let i = 0; i < STAR_COUNT; i++) {
-  const phi   = Math.acos(2 * Math.random() - 1);
-  const theta = Math.random() * Math.PI * 2;
-  const r     = 150 + Math.random() * 250;
-  starPositions[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
-  starPositions[i * 3 + 1] = r * Math.cos(phi);
-  starPositions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
-  starSizes[i]  = 0.8 + Math.random() * 2.2;  // size variation
-  starAlphas[i] = 0.4 + Math.random() * 0.6;  // brightness variation
+// ── Lumières ──────────────────────────────────────────────────
+const sunLight=new THREE.DirectionalLight(0xfff5e4,1.4);sunLight.position.set(5,3,5);scene.add(sunLight);
+scene.add(new THREE.AmbientLight(0x060d1a,.6));
+
+// ═══ CUSTOM ORBIT CONTROLS (zero dépendance) ════════════════
+const spinBtn=document.getElementById('btn-spin');
+const orbit={
+  theta:0,phi:Math.PI*.46,radius:2.8,minR:1.15,maxR:14,
+  autoRotate:true,autoSpeed:.0012,
+  _drag:null,_vT:0,_vP:0,_ts:{},_p0:0,_r0:0,
+  init(el){
+    el.addEventListener('pointerdown', e=>{if(e.pointerType==='touch')return;this._drag={x:e.clientX,y:e.clientY,t:this.theta,p:this.phi};this._vT=this._vP=0;this.autoRotate=false;spinBtn.classList.remove('on');});
+    el.addEventListener('pointermove', e=>{if(!this._drag||e.pointerType==='touch')return;const dx=e.clientX-this._drag.x,dy=e.clientY-this._drag.y;this._vT=-dx*.0009;this._vP=dy*.0009;this.theta=this._drag.t-dx*.006;this.phi=Math.max(.08,Math.min(Math.PI-.08,this._drag.p+dy*.006));});
+    el.addEventListener('pointerup',   e=>{if(e.pointerType==='touch')return;this._drag=null;});
+    el.addEventListener('pointercancel',e=>{if(e.pointerType==='touch')return;this._drag=null;});
+    el.addEventListener('wheel',       e=>{e.preventDefault();this.radius=Math.max(this.minR,Math.min(this.maxR,this.radius*(1+e.deltaY*.001)));},{passive:false});
+    el.addEventListener('touchstart',  e=>{e.preventDefault();for(const t of e.changedTouches)this._ts[t.identifier]={x:t.clientX,y:t.clientY};const ids=Object.keys(this._ts);if(ids.length===1)this._drag={x:this._ts[ids[0]].x,y:this._ts[ids[0]].y,t:this.theta,p:this.phi};if(ids.length>=2){const[a,b]=[this._ts[ids[0]],this._ts[ids[1]]];this._p0=Math.hypot(b.x-a.x,b.y-a.y);this._r0=this.radius;}this.autoRotate=false;spinBtn.classList.remove('on');},{passive:false});
+    el.addEventListener('touchmove',   e=>{e.preventDefault();for(const t of e.changedTouches)this._ts[t.identifier]={x:t.clientX,y:t.clientY};const ids=Object.keys(this._ts);if(ids.length===1&&this._drag){const c=this._ts[ids[0]],dx=c.x-this._drag.x,dy=c.y-this._drag.y;this.theta=this._drag.t-dx*.006;this.phi=Math.max(.08,Math.min(Math.PI-.08,this._drag.p+dy*.006));}if(ids.length>=2){const[a,b]=[this._ts[ids[0]],this._ts[ids[1]]];this.radius=Math.max(this.minR,Math.min(this.maxR,this._r0*(this._p0/Math.hypot(b.x-a.x,b.y-a.y))));}},{passive:false});
+    el.addEventListener('touchend',    e=>{for(const t of e.changedTouches)delete this._ts[t.identifier];if(Object.keys(this._ts).length===0)this._drag=null;});
+  },
+  update(){
+    if(this.autoRotate&&!this._drag)this.theta+=this.autoSpeed;
+    if(!this._drag){this.theta+=this._vT;this.phi+=this._vP;this._vT*=.88;this._vP*=.88;}
+    this.phi=Math.max(.08,Math.min(Math.PI-.08,this.phi));
+    camera.position.set(this.radius*Math.sin(this.phi)*Math.cos(this.theta),this.radius*Math.cos(this.phi),this.radius*Math.sin(this.phi)*Math.sin(this.theta));
+    camera.lookAt(0,0,0);
+  }
+};
+orbit.init(canvas);
+
+// ═══ MATHS LAT/LNG ══════════════════════════════════════════
+function localToLL(v){return{lat:Math.asin(Math.max(-1,Math.min(1,v.y)))*180/Math.PI,lng:Math.atan2(v.z,v.x)*180/Math.PI};}
+function llToWorld(lat,lng){
+  const la=lat*Math.PI/180,lo=lng*Math.PI/180;
+  earthGroup.updateMatrixWorld(true);
+  return new THREE.Vector3(Math.cos(la)*Math.cos(lo),Math.sin(la),Math.cos(la)*Math.sin(lo)).transformDirection(earthGroup.matrixWorld).normalize();
 }
 
-const starsGeo = new THREE.BufferGeometry();
-starsGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-starsGeo.setAttribute('aSize',    new THREE.BufferAttribute(starSizes,     1));
-starsGeo.setAttribute('aAlpha',   new THREE.BufferAttribute(starAlphas,    1));
+// ═══ FLY TO ══════════════════════════════════════════════════
+function flyTo(lat,lng,r=1.8){
+  orbit.autoRotate=false;spinBtn.classList.remove('on');
+  const target=llToWorld(lat,lng).multiplyScalar(r),start=camera.position.clone(),t0=performance.now(),dur=2500;
+  (function step(now){
+    const t=Math.min((now-t0)/dur,1),e=t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+    camera.position.lerpVectors(start,target,e);camera.lookAt(0,0,0);
+    const rr=camera.position.length();orbit.radius=rr;orbit.phi=Math.acos(Math.max(-1,Math.min(1,camera.position.y/rr)));orbit.theta=Math.atan2(camera.position.z,camera.position.x);
+    if(t<1)requestAnimationFrame(step);
+  })(t0);
+}
 
-const starsVert = `
-  attribute float aSize;
-  attribute float aAlpha;
-  varying   float vAlpha;
-  uniform   float uTime;
+// ═══ ANIMATION LOOP ══════════════════════════════════════════
+const rc=new THREE.Raycaster();let tick=0;
+function animate(){
+  requestAnimationFrame(animate);tick+=.001;
+  cloudMesh.rotation.y+=.000065;
+  const sa=tick*.045;sunLight.position.set(Math.cos(sa)*9,2.5,Math.sin(sa)*9);
+  earthMat.uniforms.uSun.value.copy(sunLight.position.clone().applyMatrix4(camera.matrixWorldInverse).normalize());
+  atmosMat.uniforms.uCam.value.copy(camera.position).applyMatrix4(new THREE.Matrix4().copy(earthGroup.matrixWorld).invert());
+  starMat.uniforms.uT.value=tick;
+  // Info bar
+  rc.setFromCamera({x:0,y:0},camera);
+  const hi=rc.intersectObject(earthMesh);
+  if(hi.length){earthGroup.updateMatrixWorld(true);const{lat,lng}=localToLL(earthGroup.worldToLocal(hi[0].point.clone()));document.getElementById('v-lat').textContent=lat.toFixed(4)+'°';document.getElementById('v-lng').textContent=lng.toFixed(4)+'°';}
+  document.getElementById('v-zoom').textContent=orbit.radius.toFixed(2)+' AU';
+  orbit.update();renderer.render(scene,camera);
+}
 
-  // Scintillement : chaque étoile a un rythme légèrement différent
-  float hash(float n) { return fract(sin(n) * 43758.5453); }
-
-  void main() {
-    vAlpha = aAlpha * (0.75 + 0.25 * sin(uTime * 2.0 + hash(aSize * 100.0) * 6.28));
-    vec4 mvPos   = modelViewMatrix * vec4(position, 1.0);
-    gl_PointSize = aSize * (300.0 / -mvPos.z);
-    gl_Position  = projectionMatrix * mvPos;
-  }
-`;
-const starsFrag = `
-  varying float vAlpha;
-
-  void main() {
-    // Disque rond avec falloff doux
-    vec2  d = gl_PointCoord - 0.5;
-    float r = dot(d, d) * 4.0;
-    if (r > 1.0) discard;
-    float a = (1.0 - r) * (1.0 - r) * vAlpha;
-    // Légère teinte : certaines étoiles légèrement jaunes/bleues
-    vec3 col = mix(vec3(0.9, 0.95, 1.0), vec3(1.0, 0.97, 0.85), fract(vAlpha * 7.3));
-    gl_FragColor = vec4(col, a);
-  }
-`;
-
-const starsMat = new THREE.ShaderMaterial({
-  uniforms:       { uTime: { value: 0 } },
-  vertexShader:   starsVert,
-  fragmentShader: starsFrag,
-  blending:       THREE.AdditiveBlending,
-  transparent:    true,
-  depthWrite:     false,
-  depthTest:      true
+// ═══ CLIC GLOBE ══════════════════════════════════════════════
+let pd=null;
+canvas.addEventListener('pointerdown',e=>{pd={x:e.clientX,y:e.clientY};});
+canvas.addEventListener('pointerup',  e=>{
+  if(!pd)return;if(Math.abs(e.clientX-pd.x)<8&&Math.abs(e.clientY-pd.y)<8){
+    const rect=canvas.getBoundingClientRect();
+    rc.setFromCamera({x:((e.clientX-rect.left)/rect.width)*2-1,y:-((e.clientY-rect.top)/rect.height)*2+1},camera);
+    const hi=rc.intersectObject(earthMesh);
+    if(hi.length){earthGroup.updateMatrixWorld(true);const{lat,lng}=localToLL(earthGroup.worldToLocal(hi[0].point.clone()));showPC(lat,lng);}
+  }pd=null;
 });
 
-scene.add(new THREE.Points(starsGeo, starsMat));
-
-// ── LUMIÈRE ───────────────────────────────────────────────
-const sunLight = new THREE.DirectionalLight(0xfff5e8, 1.3);
-sunLight.position.set(5, 2, 5);
-scene.add(sunLight);
-// Lumière ambiante très faible — espace profond
-scene.add(new THREE.AmbientLight(0x0a1020, 0.5));
-
-// ── CONTROLS ─────────────────────────────────────────────
-const controls = new THREE.OrbitControls(camera, renderer.domElement);
-controls.enableDamping  = true;
-controls.dampingFactor  = 0.07;
-controls.minDistance    = 1.14;
-controls.maxDistance    = 14;
-controls.rotateSpeed    = 0.45;
-controls.zoomSpeed      = 0.85;
-controls.autoRotate     = true;
-controls.autoRotateSpeed = 0.22;
-controls.enablePan      = false;
-controls.target.set(0, 0, 0);
-
-// Stop auto-rotate quand l'utilisateur touche le globe
-renderer.domElement.addEventListener('pointerdown', () => { controls.autoRotate = false; });
-
-// ── BOUCLE D'ANIMATION ────────────────────────────────────
-let clock = 0;
-function animate() {
-  requestAnimationFrame(animate);
-  clock += 0.001;
-
-  // Nuages dérivent lentement
-  cloudsMesh.rotation.y += 0.00007;
-
-  // Soleil tourne lentement (simulation du temps)
-  const sunAngle = clock * 0.04;
-  sunLight.position.set(Math.cos(sunAngle) * 8, 2, Math.sin(sunAngle) * 8);
-  earthMat.uniforms.sunDir.value
-    .copy(sunLight.position)
-    .applyMatrix4(new THREE.Matrix4().copy(earthGroup.matrixWorld).invert())
-    .normalize();
-
-  // Atmosphère : viewVec = direction caméra → centre dans l'espace de la sphère
-  const localCam = earthGroup.worldToLocal(camera.position.clone());
-  atmosMat.uniforms.viewVec.value.copy(localCam).normalize();
-
-  // Scintillement étoiles
-  starsMat.uniforms.uTime.value = clock;
-
-  // Mise à jour info bar
-  updateInfoBar();
-
-  controls.update();
-  renderer.render(scene, camera);
+// ═══ PLACE CARD ══════════════════════════════════════════════
+let curP=null;
+async function showPC(lat,lng){
+  let name=`${lat.toFixed(3)}°, ${lng.toFixed(3)}°`;
+  try{const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,{headers:{'Accept-Language':'fr'}});const d=await r.json();if(d.display_name)name=d.display_name.split(',').slice(0,2).join(', ').trim();}catch{}
+  curP={name,lat,lng};document.getElementById('pc-name').textContent=name;document.getElementById('pc-ll').textContent=`${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E`;document.getElementById('place-card').classList.add('show');
 }
+document.getElementById('pc-x').addEventListener('click',()=>document.getElementById('place-card').classList.remove('show'));
+document.getElementById('pc-fly').addEventListener('click',()=>{if(curP)flyTo(curP.lat,curP.lng,1.55);document.getElementById('place-card').classList.remove('show');});
+document.getElementById('pc-copy').addEventListener('click',()=>{if(!curP)return;navigator.clipboard.writeText(`${curP.lat.toFixed(6)}, ${curP.lng.toFixed(6)}`).catch(()=>{});toast('📋 Copié !');});
+document.getElementById('pc-gm').addEventListener('click',()=>{if(curP)window.open(`https://maps.google.com/?q=${curP.lat},${curP.lng}`,'_blank');});
+document.getElementById('info-bar').addEventListener('click',()=>{const lat=document.getElementById('v-lat').textContent,lng=document.getElementById('v-lng').textContent;navigator.clipboard.writeText(lat+', '+lng).catch(()=>{});toast('📋 Coordonnées copiées !');});
+
+// ═══ BOUTONS ═════════════════════════════════════════════════
+document.getElementById('btn-geo').addEventListener('click',()=>{
+  const btn=document.getElementById('btn-geo');if(!navigator.geolocation){toast('Non disponible');return;}btn.classList.add('on');
+  navigator.geolocation.getCurrentPosition(p=>{flyTo(p.coords.latitude,p.coords.longitude,1.55);toast('📍 Position trouvée !');setTimeout(()=>btn.classList.remove('on'),3000);},()=>{btn.classList.remove('on');toast('Refusée');},{enableHighAccuracy:true,timeout:10000});
+});
+spinBtn.addEventListener('click',()=>{orbit.autoRotate=!orbit.autoRotate;spinBtn.classList.toggle('on',orbit.autoRotate);toast(orbit.autoRotate?'🔄 Rotation activée':'⏸ Arrêtée');});
+document.getElementById('btn-reset').addEventListener('click',()=>{
+  document.getElementById('place-card').classList.remove('show');
+  const s=camera.position.clone(),e=new THREE.Vector3(0,0,2.8),t0=performance.now();
+  (function step(now){const t=Math.min((now-t0)/1800,1),ez=1-Math.pow(1-t,3);camera.position.lerpVectors(s,e,ez);camera.lookAt(0,0,0);const rr=camera.position.length();orbit.radius=rr;orbit.phi=Math.acos(Math.max(-1,Math.min(1,camera.position.y/rr)));orbit.theta=Math.atan2(camera.position.z,camera.position.x);if(t<1)requestAnimationFrame(step);else{orbit.autoRotate=true;spinBtn.classList.add('on');}})(t0);
+});
+document.getElementById('btn-zin').addEventListener('click',()=>{orbit.radius=Math.max(orbit.minR,orbit.radius-.45);});
+document.getElementById('btn-zout').addEventListener('click',()=>{orbit.radius=Math.min(orbit.maxR,orbit.radius+.45);});
+document.querySelectorAll('.l-btn').forEach(btn=>btn.addEventListener('click',()=>{
+  const on=btn.classList.toggle('on'),l=btn.dataset.layer;
+  if(l==='clouds'){cloudMesh.visible=on;toast(on?'☁️ Nuages activés':'☀️ Ciel dégagé');}
+  else if(l==='night'){earthMat.uniforms.uNM.value=on?1.:0.;toast(on?'🌙 Nuit forcée':'🌍 Mode réaliste');}
+  else if(l==='atmos'){atmosMesh.visible=on;toast(on?'🌐 Atmosphère':'🔭 Sans atmosphère');}
+}));
+
+// ═══ SEARCH ══════════════════════════════════════════════════
+const inp=document.getElementById('search-input'),ac=document.getElementById('autocomplete'),clr=document.getElementById('s-clear');
+let st=null;
+inp.addEventListener('input',()=>{const q=inp.value.trim();clr.style.display=q?'flex':'none';clearTimeout(st);if(q.length<2){ac.style.display='none';return;}st=setTimeout(()=>doSrch(q),320);});
+clr.addEventListener('click',()=>{inp.value='';clr.style.display='none';ac.style.display='none';inp.focus();});
+async function doSrch(q){try{const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&accept-language=fr`);renderAC(await r.json());}catch{ac.style.display='none';}}
+const ICO={city:'🏙',town:'🏘',village:'🏡',country:'🌍',administrative:'📍',state:'📍',airport:'✈️',hotel:'🏨',restaurant:'🍽',museum:'🏛',park:'🌿'};
+function renderAC(res){
+  if(!res.length){ac.style.display='none';return;}ac.innerHTML='';
+  res.forEach(item=>{const pp=item.display_name.split(','),main=pp[0].trim(),sub=pp.slice(1,3).join(', ').trim(),ico=ICO[item.type]||ICO[item.class]||'📍';
+    const row=document.createElement('div');row.className='ac-row';row.innerHTML=`<div class="ac-ico">${ico}</div><div><div class="ac-main">${main}</div><div class="ac-sub">${sub}</div></div>`;
+    row.addEventListener('click',()=>{const lat=parseFloat(item.lat),lng=parseFloat(item.lon),d=item.type==='country'?3.5:item.type==='state'?2.5:1.55;flyTo(lat,lng,d);curP={name:main,lat,lng};document.getElementById('pc-name').textContent=main;document.getElementById('pc-ll').textContent=`${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E`;document.getElementById('place-card').classList.add('show');inp.value=main;ac.style.display='none';});
+    ac.appendChild(row);});ac.style.display='block';}
+inp.addEventListener('keydown',e=>{if(e.key==='Enter'){const f=ac.querySelector('.ac-row');if(f)f.click();}if(e.key==='Escape')ac.style.display='none';});
+document.addEventListener('touchstart',e=>{if(!e.target.closest('#search-box'))ac.style.display='none';},{passive:true});
+document.addEventListener('click',e=>{if(!e.target.closest('#search-box'))ac.style.display='none';});
+
+// ═══ TOAST ════════════════════════════════════════════════════
+let tt=null;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2400);}
+
+// ═══ RESIZE ══════════════════════════════════════════════════
+window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+
+// ── GO ──────────────────────────────────────────────────────
+prog(100,'Prêt !');
+setTimeout(()=>{const el=document.getElementById('loader');if(!el)return;el.style.opacity='0';setTimeout(()=>el.remove(),800);},600);
 animate();
-
-// ── RESIZE ───────────────────────────────────────────────
-window.addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-});
-
-// ═══════════════════════════════════════════════════════════
-//  MATHS : lat/lng ↔ vecteur 3D sur la sphère
-// ═══════════════════════════════════════════════════════════
-
-// lat/lng → vecteur 3D (espace local earthGroup)
-function latLngToVec3(lat, lng) {
-  const phi   = (90 - lat) * Math.PI / 180;
-  const theta = (lng + 180) * Math.PI / 180;
-  return new THREE.Vector3(
-    -Math.sin(phi) * Math.cos(theta),
-     Math.cos(phi),
-     Math.sin(phi) * Math.sin(theta)
-  );
-}
-
-// Vecteur 3D (espace local earthGroup) → lat/lng
-function vec3ToLatLng(v) {
-  const len = v.length();
-  const lat = 90 - Math.acos(Math.max(-1, Math.min(1, v.y / len))) * 180 / Math.PI;
-  let theta  = Math.atan2(v.z, -v.x);
-  if (theta < 0) theta += 2 * Math.PI;
-  const lng  = theta * 180 / Math.PI - 180;
-  return { lat, lng: ((lng + 540) % 360) - 180 };
-}
-
-// ═══════════════════════════════════════════════════════════
-//  INTERACTION — CLIC / TOUCH SUR LE GLOBE
-// ═══════════════════════════════════════════════════════════
-const raycaster = new THREE.Raycaster();
-let   pointerDown = null;
-
-renderer.domElement.addEventListener('pointerdown', e => {
-  pointerDown = { x: e.clientX, y: e.clientY };
-});
-renderer.domElement.addEventListener('pointerup', e => {
-  if (!pointerDown) return;
-  const dx = Math.abs(e.clientX - pointerDown.x);
-  const dy = Math.abs(e.clientY - pointerDown.y);
-  if (dx < 8 && dy < 8) onGlobeClick(e.clientX, e.clientY);
-  pointerDown = null;
-});
-
-function onGlobeClick(cx, cy) {
-  const rect = renderer.domElement.getBoundingClientRect();
-  raycaster.setFromCamera({
-    x:  ((cx - rect.left) / rect.width)  * 2 - 1,
-    y: -((cy - rect.top)  / rect.height) * 2 + 1
-  }, camera);
-  const hits = raycaster.intersectObject(earthMesh);
-  if (!hits.length) return;
-  // Convertir le point 3D monde → espace local earthGroup → lat/lng
-  const local = earthGroup.worldToLocal(hits[0].point.clone());
-  const { lat, lng } = vec3ToLatLng(local);
-  showPlaceCard(lat, lng);
-}
-
-// ── PLACE CARD ───────────────────────────────────────────
-let curPlace = null;
-
-async function showPlaceCard(lat, lng) {
-  let name = `${lat.toFixed(3)}°, ${lng.toFixed(3)}°`;
-  try {
-    const r = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
-      { headers: { 'Accept-Language': 'fr' } }
-    );
-    const d = await r.json();
-    if (d.display_name) name = d.display_name.split(',').slice(0, 2).join(', ').trim();
-  } catch {}
-  curPlace = { name, lat, lng };
-  document.getElementById('pc-name').textContent = name;
-  document.getElementById('pc-ll').textContent   = `${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E`;
-  document.getElementById('place-card').classList.add('show');
-}
-
-document.getElementById('pc-x').addEventListener('click', () => {
-  document.getElementById('place-card').classList.remove('show');
-});
-document.getElementById('pc-fly').addEventListener('click', () => {
-  if (curPlace) flyTo(curPlace.lat, curPlace.lng, 1.6);
-  document.getElementById('place-card').classList.remove('show');
-});
-document.getElementById('pc-copy').addEventListener('click', () => {
-  if (!curPlace) return;
-  navigator.clipboard.writeText(`${curPlace.lat.toFixed(6)}, ${curPlace.lng.toFixed(6)}`).catch(() => {});
-  toast('📋 Copié !');
-});
-document.getElementById('pc-gm').addEventListener('click', () => {
-  if (curPlace) window.open(`https://maps.google.com/?q=${curPlace.lat},${curPlace.lng}`, '_blank');
-});
-
-// ═══════════════════════════════════════════════════════════
-//  FLY TO — Animation caméra vers un lieu
-// ═══════════════════════════════════════════════════════════
-function flyTo(lat, lng, targetDist = 1.8) {
-  controls.autoRotate = false;
-  controls.enabled    = false;
-
-  // Convertir lat/lng → position 3D monde
-  const localPt = latLngToVec3(lat, lng);
-  const worldPt = earthGroup.localToWorld(localPt.clone());
-  const dir      = worldPt.clone().normalize();
-  const targetPos = dir.multiplyScalar(targetDist);
-
-  const startPos = camera.position.clone();
-  const t0 = performance.now();
-  const dur = 2400;
-
-  function step(now) {
-    const t    = Math.min((now - t0) / dur, 1);
-    // Ease cubic in-out
-    const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-    camera.position.lerpVectors(startPos, targetPos, ease);
-    camera.lookAt(0, 0, 0);
-    if (t < 1) {
-      requestAnimationFrame(step);
-    } else {
-      controls.target.set(0, 0, 0);
-      controls.update();
-      controls.enabled = true;
-    }
-  }
-  requestAnimationFrame(step);
-}
-
-// ═══════════════════════════════════════════════════════════
-//  INFO BAR — Coordonnées du centre de l'écran
-// ═══════════════════════════════════════════════════════════
-function updateInfoBar() {
-  raycaster.setFromCamera({ x: 0, y: 0 }, camera);
-  const hits = raycaster.intersectObject(earthMesh);
-  if (hits.length) {
-    const local = earthGroup.worldToLocal(hits[0].point.clone());
-    const { lat, lng } = vec3ToLatLng(local);
-    document.getElementById('v-lat').textContent  = lat.toFixed(4) + '°';
-    document.getElementById('v-lng').textContent  = lng.toFixed(4) + '°';
-  }
-  const d = camera.position.length();
-  document.getElementById('v-zoom').textContent = d.toFixed(2) + ' UA';
-}
-
-document.getElementById('info-bar').addEventListener('click', () => {
-  const lat = document.getElementById('v-lat').textContent;
-  const lng = document.getElementById('v-lng').textContent;
-  navigator.clipboard.writeText(lat + ', ' + lng).catch(() => {});
-  toast('📋 Coordonnées copiées !');
-});
-
-// ═══════════════════════════════════════════════════════════
-//  BOUTONS UI
-// ═══════════════════════════════════════════════════════════
-
-// Géolocalisation
-document.getElementById('btn-geo').addEventListener('click', () => {
-  const btn = document.getElementById('btn-geo');
-  if (!navigator.geolocation) { toast('Géolocalisation non disponible'); return; }
-  btn.classList.add('on');
-  navigator.geolocation.getCurrentPosition(
-    pos => {
-      flyTo(pos.coords.latitude, pos.coords.longitude, 1.5);
-      toast('📍 Position trouvée !');
-      setTimeout(() => btn.classList.remove('on'), 3000);
-    },
-    () => { btn.classList.remove('on'); toast('Géolocalisation refusée'); },
-    { enableHighAccuracy: true, timeout: 10000 }
-  );
-});
-
-// Toggle auto-rotation
-const spinBtn = document.getElementById('btn-spin');
-spinBtn.classList.add('on');
-spinBtn.addEventListener('click', () => {
-  controls.autoRotate = !controls.autoRotate;
-  spinBtn.classList.toggle('on', controls.autoRotate);
-  toast(controls.autoRotate ? '🔄 Rotation activée' : '⏸ Rotation arrêtée');
-});
-
-// Reset
-document.getElementById('btn-reset').addEventListener('click', () => {
-  controls.autoRotate = false;
-  controls.enabled    = false;
-  document.getElementById('place-card').classList.remove('show');
-  const startPos = camera.position.clone();
-  const targetPos = new THREE.Vector3(0, 0, 2.8);
-  const t0 = performance.now();
-  function step(now) {
-    const t    = Math.min((now - t0) / 1800, 1);
-    const ease = 1 - Math.pow(1 - t, 3);
-    camera.position.lerpVectors(startPos, targetPos, ease);
-    camera.lookAt(0, 0, 0);
-    if (t < 1) { requestAnimationFrame(step); }
-    else {
-      controls.target.set(0, 0, 0);
-      controls.update();
-      controls.enabled = true;
-      controls.autoRotate = true;
-      spinBtn.classList.add('on');
-    }
-  }
-  requestAnimationFrame(step);
-});
-
-// Zoom +/−
-document.getElementById('btn-zin').addEventListener('click', () => {
-  const d   = camera.position.length();
-  const min = controls.minDistance;
-  if (d <= min + 0.01) return;
-  const newD = Math.max(min, d - 0.4);
-  camera.position.normalize().multiplyScalar(newD);
-  controls.update();
-});
-document.getElementById('btn-zout').addEventListener('click', () => {
-  const d   = camera.position.length();
-  const max = controls.maxDistance;
-  if (d >= max - 0.01) return;
-  const newD = Math.min(max, d + 0.4);
-  camera.position.normalize().multiplyScalar(newD);
-  controls.update();
-});
-
-// Layers
-document.querySelectorAll('.l-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const layer = btn.dataset.layer;
-    if (layer === 'clouds') {
-      cloudsOn = !cloudsOn;
-      cloudsMesh.visible = cloudsOn;
-      btn.classList.toggle('on', cloudsOn);
-      toast(cloudsOn ? '☁️ Nuages activés' : '☀️ Ciel dégagé');
-    } else if (layer === 'night') {
-      const isOn = btn.classList.toggle('on');
-      earthMat.uniforms.nightMode.value = isOn ? 1.0 : 0.0;
-      toast(isOn ? '🌙 Mode nuit' : '🌍 Mode réaliste');
-    } else if (layer === 'satellite') {
-      // satellite est toujours actif (c'est le mode principal)
-      btn.classList.add('on');
-    }
-  });
-});
-
-// ═══════════════════════════════════════════════════════════
-//  RECHERCHE — Nominatim (geocoding seulement, pas de tiles)
-// ═══════════════════════════════════════════════════════════
-const inp = document.getElementById('search-input');
-const ac  = document.getElementById('autocomplete');
-const clr = document.getElementById('s-clear');
-let searchTimer = null;
-
-inp.addEventListener('input', () => {
-  const q = inp.value.trim();
-  clr.style.display = q ? 'flex' : 'none';
-  clearTimeout(searchTimer);
-  if (q.length < 2) { ac.style.display = 'none'; return; }
-  searchTimer = setTimeout(() => doSearch(q), 320);
-});
-clr.addEventListener('click', () => {
-  inp.value = '';
-  clr.style.display = 'none';
-  ac.style.display  = 'none';
-  inp.focus();
-});
-
-async function doSearch(q) {
-  try {
-    const r = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&accept-language=fr`
-    );
-    renderAC(await r.json());
-  } catch { ac.style.display = 'none'; }
-}
-
-const ICO = { city:'🏙', town:'🏘', village:'🏡', country:'🌍', administrative:'📍', state:'📍', airport:'✈️', hotel:'🏨', restaurant:'🍽', museum:'🏛', park:'🌿', mountain_pass:'⛰️' };
-
-function renderAC(results) {
-  if (!results.length) { ac.style.display = 'none'; return; }
-  ac.innerHTML = '';
-  results.forEach(item => {
-    const parts = item.display_name.split(',');
-    const main  = parts[0].trim();
-    const sub   = parts.slice(1, 3).join(', ').trim();
-    const ico   = ICO[item.type] || ICO[item.class] || '📍';
-    const row   = document.createElement('div');
-    row.className = 'ac-row';
-    row.innerHTML = `<div class="ac-ico">${ico}</div><div><div class="ac-main">${main}</div><div class="ac-sub">${sub}</div></div>`;
-    row.addEventListener('click', () => {
-      const lat = parseFloat(item.lat);
-      const lng = parseFloat(item.lon);
-      const dist = item.type === 'country' ? 3.5 : item.type === 'state' ? 2.5 : 1.6;
-      flyTo(lat, lng, dist);
-      curPlace = { name: main, lat, lng };
-      document.getElementById('pc-name').textContent = main;
-      document.getElementById('pc-ll').textContent   = `${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E`;
-      document.getElementById('place-card').classList.add('show');
-      inp.value = main;
-      ac.style.display = 'none';
-    });
-    ac.appendChild(row);
-  });
-  ac.style.display = 'block';
-}
-
-inp.addEventListener('keydown', e => {
-  if (e.key === 'Enter') { const f = ac.querySelector('.ac-row'); if (f) f.click(); }
-  if (e.key === 'Escape') ac.style.display = 'none';
-});
-document.addEventListener('touchstart', e => {
-  if (!e.target.closest('#search-box')) ac.style.display = 'none';
-}, { passive: true });
-document.addEventListener('click', e => {
-  if (!e.target.closest('#search-box')) ac.style.display = 'none';
-});
-
-// ═══════════════════════════════════════════════════════════
-//  TOAST
-// ═══════════════════════════════════════════════════════════
-let toastTimer = null;
-function toast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
-}
-
-// ═══════════════════════════════════════════════════════════
-//  LOADER HIDE
-// ═══════════════════════════════════════════════════════════
-function hideLoader() {
-  prog(100, 'Prêt !');
-  setTimeout(() => {
-    const el = document.getElementById('loader');
-    if (!el) return;
-    el.style.opacity = '0';
-    setTimeout(() => el.remove(), 800);
-  }, 500);
-}
-// Fallback si les textures mettent trop de temps
-setTimeout(hideLoader, 9000);
 </script>
 
 </body>
